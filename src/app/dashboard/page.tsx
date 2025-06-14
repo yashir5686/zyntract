@@ -24,7 +24,6 @@ export default function DashboardPage() {
   const { user, userProfile, loading: authLoading, isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
-  const [appliedCampaignIds, setAppliedCampaignIds] = useState<Set<string>>(new Set());
   const [isAddCampaignOpen, setIsAddCampaignOpen] = useState(false);
 
   const fetchCampaignData = async () => {
@@ -38,10 +37,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchCampaignData();
   }, []);
-
-  const handleApplicationSuccess = (campaignId: string) => {
-    setAppliedCampaignIds(prev => new Set(prev).add(campaignId));
-  };
 
   const handleCampaignAdded = () => {
     fetchCampaignData(); // Refresh the list of campaigns
@@ -125,10 +120,10 @@ export default function DashboardPage() {
       ) : (
         <>
           {ongoingCampaigns.length > 0 && (
-            <CampaignSection title="Ongoing Campaigns" campaigns={ongoingCampaigns} user={userProfile} onApplySuccess={handleApplicationSuccess} />
+            <CampaignSection title="Ongoing Campaigns" campaigns={ongoingCampaigns} user={userProfile} />
           )}
           {upcomingCampaigns.length > 0 && (
-            <CampaignSection title="Upcoming Campaigns" campaigns={upcomingCampaigns} user={userProfile} onApplySuccess={handleApplicationSuccess} />
+            <CampaignSection title="Upcoming Campaigns" campaigns={upcomingCampaigns} user={userProfile} />
           )}
           {campaigns.length === 0 && !isLoadingCampaigns && (
             <div className="text-center py-10">
@@ -137,7 +132,7 @@ export default function DashboardPage() {
             </div>
           )}
           {pastCampaigns.length > 0 && (
-            <CampaignSection title="Past Campaigns" campaigns={pastCampaigns} user={userProfile} onApplySuccess={handleApplicationSuccess} />
+            <CampaignSection title="Past Campaigns" campaigns={pastCampaigns} user={userProfile} />
           )}
         </>
       )}
@@ -149,10 +144,9 @@ interface CampaignSectionProps {
   title: string;
   campaigns: Campaign[];
   user: UserProfile | null;
-  onApplySuccess: (campaignId: string) => void;
 }
 
-const CampaignSection = ({ title, campaigns, user, onApplySuccess }: CampaignSectionProps) => (
+const CampaignSection = ({ title, campaigns, user }: CampaignSectionProps) => (
   <section className="mb-12">
     <h2 className="font-headline text-2xl md:text-3xl font-semibold mb-6 border-b-2 border-primary pb-2">{title}</h2>
     {campaigns.length === 0 ? (
@@ -160,7 +154,7 @@ const CampaignSection = ({ title, campaigns, user, onApplySuccess }: CampaignSec
     ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {campaigns.map((campaign) => (
-          <CampaignCard key={campaign.id} campaign={campaign} user={user} onApplySuccess={onApplySuccess} />
+          <CampaignCard key={campaign.id} campaign={campaign} user={user} />
         ))}
       </div>
     )}
