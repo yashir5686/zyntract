@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Import useCallback
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,29 +54,34 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     },
   });
 
-  const fetchCoursesWithSubmissionCounts = async () => {
+  const fetchCoursesWithSubmissionCounts = useCallback(async () => {
+    if (!campaignId) {
+        setIsFetchingCourses(false);
+        setCourses([]);
+        return;
+    }
     setIsFetchingCourses(true);
     try {
       const fetchedCourses = await getCoursesForCampaign(campaignId);
-      const coursesWithCounts = await Promise.all(
-        fetchedCourses.map(async (course) => {
-          const submissions = await getCertificatesForCourseForAdmin(course.id);
-          const reviewCount = submissions.filter(s => s.status === 'review').length;
-          return { ...course, reviewCount };
-        })
-      );
+      const coursesWithCountsPromises = fetchedCourses.map(async (course) => {
+        const submissions = await getCertificatesForCourseForAdmin(course.id);
+        const reviewCount = submissions.filter(s => s.status === 'review').length;
+        return { ...course, reviewCount };
+      });
+      const coursesWithCounts = await Promise.all(coursesWithCountsPromises);
       setCourses(coursesWithCounts);
     } catch (error) {
+      console.error("Error fetching courses for dialog:", error);
       toast({ variant: 'destructive', title: 'Error fetching courses', description: (error as Error).message });
+      setCourses([]);
     } finally {
       setIsFetchingCourses(false);
     }
-  };
+  }, [campaignId, toast]);
 
   useEffect(() => {
     fetchCoursesWithSubmissionCounts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campaignId]);
+  }, [fetchCoursesWithSubmissionCounts]);
 
   const onSubmit = async (data: CourseFormValues) => {
     setIsLoading(true);
@@ -98,8 +103,6 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
   };
   
   const handleSubmissionsUpdated = () => {
-    // This function will be called by CourseSubmissionsReviewDialog when submissions are updated.
-    // Re-fetch courses to update review counts.
     fetchCoursesWithSubmissionCounts();
   };
 
@@ -211,7 +214,7 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
           setIsReviewDialogOpen(open);
           if (!open) setSelectedCourseForReview(null);
         }}>
-          <DialogContent className="sm:max-w-3xl max-h-[90vh]"> {/* Adjusted width */}
+          <DialogContent className="sm:max-w-3xl max-h-[90vh]"> 
             <CourseSubmissionsReviewDialog 
               courseId={selectedCourseForReview.id} 
               courseTitle={selectedCourseForReview.title}
@@ -231,3 +234,4 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     </>
   );
 }
+
