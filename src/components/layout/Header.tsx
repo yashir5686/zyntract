@@ -54,9 +54,25 @@ export default function Header() {
             xmlns="http://www.w3.org/2000/svg"
             className="h-8 w-8 text-primary mr-2"
           >
-            <path d="M4 5H20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M4 19H20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M16.5 5L7.5 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <polygon
+              points="21,12 16.5,19.794 7.5,19.794 3,12 7.5,4.206 16.5,4.206"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+              strokeLinejoin="round"
+            />
+            <text
+              x="12"
+              y="12.3"
+              fontFamily="Space Grotesk, sans-serif"
+              fontSize="11"
+              fontWeight="bold"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="currentColor"
+            >
+              Z
+            </text>
           </svg>
           <span className="font-headline text-2xl font-bold">Zyntract</span>
         </Link>
