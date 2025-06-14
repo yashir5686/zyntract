@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
-import { Badge } from '@/components/ui/badge'; // Added import
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +50,7 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
       await applyToCampaign(user.uid, campaign.id, user.displayName || undefined, user.email || undefined, campaign.name);
       toast({ title: 'Application Submitted!', description: `Your application for ${campaign.name} has been sent for review.` });
       if (onApplySuccess) onApplySuccess(campaign.id);
-      setIsDialogOpen(false); 
+      setIsDialogOpen(false);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Application Failed', description: error.message || 'Could not submit application.' });
     } finally {
@@ -72,7 +72,7 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
         return null;
     }
   };
-  
+
   const isUserEligible = user && (campaign.requiredPoints || 0) <= (user.points || 0);
   const canApply = user && (campaign.status === 'ongoing' || campaign.status === 'upcoming') && isUserEligible;
   const cannotApplyReason = () => {
@@ -100,7 +100,7 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
       return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button 
+            <Button
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               disabled={!user || campaign.status === 'past' || isApplyingInternal || !isUserEligible}
               onClick={(e) => e.stopPropagation()} // Prevent Link navigation
@@ -134,46 +134,47 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/30 transition-all duration-300 h-full bg-card">
-      <Link href={`/campaign/${campaign.id}`} passHref legacyBehavior>
-        <a className="block hover:opacity-90 transition-opacity">
-          {campaign.imageUrl && (
-            <div className="relative w-full h-48">
-              <Image
-                src={campaign.imageUrl}
-                alt={campaign.name}
-                fill
-                sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-                style={{ objectFit: 'cover' }}
-                data-ai-hint="technology abstract"
-              />
-            </div>
+      <Link
+        href={`/campaign/${campaign.id}`}
+        className="block hover:opacity-90 transition-opacity"
+      >
+        {campaign.imageUrl && (
+          <div className="relative w-full h-48">
+            <Image
+              src={campaign.imageUrl}
+              alt={campaign.name}
+              fill
+              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+              style={{ objectFit: 'cover' }}
+              data-ai-hint="technology abstract"
+            />
+          </div>
+        )}
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle className="font-headline text-2xl mb-1 group-hover:underline">{campaign.name}</CardTitle>
+            {getStatusBadge()}
+          </div>
+          <CardDescription className="text-sm flex items-center text-muted-foreground">
+            <CalendarDays className="w-4 h-4 mr-2" />
+            {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
+          </CardDescription>
+          {campaign.requiredPoints && campaign.requiredPoints > 0 && (
+              <CardDescription className="text-sm flex items-center text-muted-foreground mt-1">
+                  <Zap className="w-4 h-4 mr-2 text-accent"/>
+                  Requires {campaign.requiredPoints} points
+              </CardDescription>
           )}
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <CardTitle className="font-headline text-2xl mb-1 group-hover:underline">{campaign.name}</CardTitle>
-              {getStatusBadge()}
-            </div>
-            <CardDescription className="text-sm flex items-center text-muted-foreground">
-              <CalendarDays className="w-4 h-4 mr-2" />
-              {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
-            </CardDescription>
-            {campaign.requiredPoints && campaign.requiredPoints > 0 && (
-                <CardDescription className="text-sm flex items-center text-muted-foreground mt-1">
-                    <Zap className="w-4 h-4 mr-2 text-accent"/>
-                    Requires {campaign.requiredPoints} points
-                </CardDescription>
-            )}
-            {campaign.applyLink && (
-                <CardDescription className="text-xs flex items-center text-accent mt-1">
-                    <ExternalLink className="w-3 h-3 mr-1"/>
-                    External application
-                </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="flex-grow">
-            <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
-          </CardContent>
-        </a>
+          {campaign.applyLink && (
+              <CardDescription className="text-xs flex items-center text-accent mt-1">
+                  <ExternalLink className="w-3 h-3 mr-1"/>
+                  External application
+              </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="flex-grow">
+          <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
+        </CardContent>
       </Link>
       <CardFooter>
         {renderApplyButton()}
