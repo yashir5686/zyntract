@@ -5,7 +5,7 @@ import type { Campaign, CampaignApplication, Course, Project, QuizChallenge } fr
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Users, Brain, Loader2, BookOpen, Video, FileText, HelpCircle } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, Video, FileText, HelpCircle, FileBadge } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { getCampaignApplicationForUser, getCoursesForCampaign, getProjectsForCampaign, getQuizChallengesForCampaign } from '@/lib/firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CampaignPublicViewProps {
   campaign: Campaign;
@@ -90,8 +91,8 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
           if (application.status === 'approved') {
             const [fetchedCourses, fetchedProjects, fetchedQuizzes] = await Promise.all([
               getCoursesForCampaign(campaign.id),
-              getProjectsForCampaign(campaign.id), // Assuming these are implemented
-              getQuizChallengesForCampaign(campaign.id) // Assuming these are implemented
+              getProjectsForCampaign(campaign.id),
+              getQuizChallengesForCampaign(campaign.id)
             ]);
             setCourses(fetchedCourses);
             setProjects(fetchedProjects);
@@ -102,7 +103,7 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
         }
       } catch (error) {
         console.error("Error checking enrollment or fetching content:", error);
-        setEnrollmentStatus('not_applied'); // Or an error state
+        setEnrollmentStatus('not_applied');
       } finally {
         setIsLoadingContent(false);
       }
@@ -114,6 +115,26 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
   }, [user, campaign.id]);
 
   const isEnrolled = enrollmentStatus === 'approved';
+  const isLoadingInitial = enrollmentStatus === 'checking' || (isEnrolled && isLoadingContent);
+
+  const renderContentPlaceholder = (message: string) => (
+    <div className="p-6 bg-card-foreground/10 rounded-lg text-center border border-border mt-4">
+      <Info className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+      <p className="text-muted-foreground font-medium">{message}</p>
+    </div>
+  );
+
+  const renderLoadingPlaceholder = (message: string) => (
+     <div className="space-y-4 py-4">
+        <div className="flex items-center justify-center text-muted-foreground p-4">
+          <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+          {message}
+        </div>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+  );
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -150,83 +171,98 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
             )}
           </div>
         </CardHeader>
+        
         <CardContent className="p-6">
-          <h2 className="font-headline text-xl font-semibold mb-3 text-primary">About this Campaign</h2>
-          <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{campaign.description}</p>
-          
-          <Separator className="my-8" />
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6">
+              <TabsTrigger value="details"><FileBadge className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Details</TabsTrigger>
+              <TabsTrigger value="courses"><BookOpen className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Courses</TabsTrigger>
+              <TabsTrigger value="projects"><Brain className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Projects</TabsTrigger>
+              <TabsTrigger value="quizzes"><HelpCircle className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Quizzes</TabsTrigger>
+              <TabsTrigger value="leaderboard"><Trophy className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Leaderboard</TabsTrigger>
+            </TabsList>
 
-          <section id="campaign-content" className="mb-8">
-            <h2 className="font-headline text-xl font-semibold mb-4 text-primary">Campaign Content &amp; Activities</h2>
-            
-            {enrollmentStatus === 'checking' || (isEnrolled && isLoadingContent) ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center text-muted-foreground p-4">
-                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                  {enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading campaign content...'}
-                </div>
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-            ) : isEnrolled ? (
-              <div className="space-y-6">
-                {/* Courses Section */}
-                <div>
-                  <h3 className="font-headline text-lg font-semibold mb-3 flex items-center"><ListChecks className="w-5 h-5 mr-2 text-accent" /> Courses</h3>
-                  {courses.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {courses.map(course => <CourseItemCard key={course.id} course={course} />)}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No courses available for this campaign yet.</p>
-                  )}
-                </div>
+            <TabsContent value="details">
+              <h2 className="font-headline text-xl font-semibold mb-3 text-primary">About this Campaign</h2>
+              <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{campaign.description}</p>
+            </TabsContent>
 
-                {/* Projects Section - Placeholder */}
-                <div>
-                  <h3 className="font-headline text-lg font-semibold mb-3 flex items-center"><Brain className="w-5 h-5 mr-2 text-accent" /> Projects</h3>
-                  {projects.length > 0 ? (
-                     <p className="text-muted-foreground">Project details will appear here. ({projects.length} project(s) planned)</p>
-                  ) : (
-                    <p className="text-muted-foreground">Projects for this campaign will be listed here soon.</p>
-                  )}
-                </div>
+            <TabsContent value="courses">
+              <h2 className="font-headline text-xl font-semibold mb-4 text-primary">Courses</h2>
+              {isLoadingInitial ? (
+                renderLoadingPlaceholder(enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading courses...')
+              ) : isEnrolled ? (
+                courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {courses.map(course => <CourseItemCard key={course.id} course={course} />)}
+                  </div>
+                ) : (
+                  renderContentPlaceholder("No courses available for this campaign yet.")
+                )
+              ) : (
+                renderContentPlaceholder(
+                  enrollmentStatus === 'pending' ? "Your application for this campaign is pending review." :
+                  enrollmentStatus === 'rejected' ? "Your application for this campaign was not approved." :
+                  "Enroll in this campaign to access course materials."
+                )
+              )}
+            </TabsContent>
 
-                {/* Quizzes & Challenges Section - Placeholder */}
-                <div>
-                  <h3 className="font-headline text-lg font-semibold mb-3 flex items-center"><HelpCircle className="w-5 h-5 mr-2 text-accent" /> Quizzes & Challenges</h3>
-                   {quizzes.length > 0 ? (
-                     <p className="text-muted-foreground">Quizzes and challenges will appear here. ({quizzes.length} item(s) planned)</p>
-                  ) : (
-                    <p className="text-muted-foreground">Quizzes and challenges for this campaign will be listed here soon.</p>
-                  )}
-                </div>
+            <TabsContent value="projects">
+              <h2 className="font-headline text-xl font-semibold mb-4 text-primary">Projects</h2>
+              {isLoadingInitial ? (
+                 renderLoadingPlaceholder(enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading projects...')
+              ) : isEnrolled ? (
+                projects.length > 0 ? (
+                  <p className="text-muted-foreground">Project details will appear here. ({projects.length} project(s) planned)</p>
+                ) : (
+                  renderContentPlaceholder("Projects for this campaign will be listed here soon.")
+                )
+              ) : (
+                 renderContentPlaceholder(
+                  enrollmentStatus === 'pending' ? "Your application for this campaign is pending review." :
+                  enrollmentStatus === 'rejected' ? "Your application for this campaign was not approved." :
+                  "Enroll in this campaign to access project details."
+                )
+              )}
+            </TabsContent>
 
-                {/* Leaderboard Section - Placeholder */}
-                <div>
-                  <h3 className="font-headline text-lg font-semibold mb-3 flex items-center"><Trophy className="w-5 h-5 mr-2 text-yellow-500" /> Leaderboard</h3>
-                  <p className="text-muted-foreground">Campaign leaderboard coming soon!</p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 bg-card-foreground/10 rounded-lg text-center border border-border">
-                <Info className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                 {enrollmentStatus === 'pending' && (
-                    <p className="text-yellow-600 font-medium mb-2">Your application for this campaign is pending review.</p>
-                 )}
-                 {enrollmentStatus === 'rejected' && (
-                    <p className="text-red-600 font-medium mb-2">Your application for this campaign was not approved at this time.</p>
-                 )}
-                <p className="text-muted-foreground font-medium">
-                  Detailed information and interactive sections will be available here for enrolled participants.
-                </p>
-                <p className="text-sm text-muted-foreground mt-3">
-                  This includes: Courses, Projects, Quizzes & Challenges, and Leaderboards.
-                </p>
-              </div>
-            )}
-          </section>
+            <TabsContent value="quizzes">
+              <h2 className="font-headline text-xl font-semibold mb-4 text-primary">Quizzes & Challenges</h2>
+              {isLoadingInitial ? (
+                 renderLoadingPlaceholder(enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading quizzes...')
+              ) : isEnrolled ? (
+                quizzes.length > 0 ? (
+                  <p className="text-muted-foreground">Quizzes and challenges will appear here. ({quizzes.length} item(s) planned)</p>
+                ) : (
+                   renderContentPlaceholder("Quizzes and challenges for this campaign will be listed here soon.")
+                )
+              ) : (
+                 renderContentPlaceholder(
+                  enrollmentStatus === 'pending' ? "Your application for this campaign is pending review." :
+                  enrollmentStatus === 'rejected' ? "Your application for this campaign was not approved." :
+                  "Enroll in this campaign to access quizzes and challenges."
+                )
+              )}
+            </TabsContent>
+
+            <TabsContent value="leaderboard">
+              <h2 className="font-headline text-xl font-semibold mb-4 text-primary">Leaderboard</h2>
+              {isLoadingInitial ? (
+                renderLoadingPlaceholder(enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading leaderboard...')
+              ) : isEnrolled ? (
+                 renderContentPlaceholder("Campaign leaderboard coming soon!")
+              ) : (
+                 renderContentPlaceholder(
+                  enrollmentStatus === 'pending' ? "Your application for this campaign is pending review." :
+                  enrollmentStatus === 'rejected' ? "Your application for this campaign was not approved." :
+                  "Enroll in this campaign to view the leaderboard."
+                )
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
+
         <CardFooter className="p-6 bg-secondary/20 flex justify-end">
              <Button asChild variant="outline">
                 <Link href="/dashboard">Back to Dashboard</Link>
@@ -236,3 +272,4 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
     </div>
   );
 }
+
