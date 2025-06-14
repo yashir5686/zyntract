@@ -294,26 +294,28 @@ export const getCachedDailyProblem = async (): Promise<DailyChallenge | null> =>
   try {
     const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
     const cacheSnap = await getDoc(cacheDocRef);
+    const todayStr = new Date().toISOString().split('T')[0];
 
     if (cacheSnap.exists()) {
       const cachedData = cacheSnap.data() as DailyProblemCache;
-      const todayStr = new Date().toISOString().split('T')[0];
-      // Ensure the cached problem's 'date' field (when it was intended to be active)
-      // matches today. The 'cachedDate' field in DailyProblemCache tells us when it was put into the cache.
-      // The problem's own 'date' field is the crucial one for determining if it's "today's problem".
-      if (cachedData.problem && cachedData.problem.date === todayStr) {
-        console.log('[getCachedDailyProblem] Valid cached problem found for today:', cachedData.problem.id);
-        return cachedData.problem;
-      } else if (cachedData.problem && cachedData.problem.date < todayStr) {
-        console.log('[getCachedDailyProblem] Cached problem is for a past date:', cachedData.problem.date, '- will fetch new.');
-      } else if (cachedData.problem && cachedData.problem.date > todayStr) {
-         console.log('[getCachedDailyProblem] Cached problem is for a future date - this is unexpected but using it for now:', cachedData.problem.date);
-         return cachedData.problem; // Should ideally not happen if logic is correct.
+      
+      // Validate the structure and date field of the cached problem
+      if (cachedData.problem && typeof cachedData.problem.date === 'string') {
+        if (cachedData.problem.date === todayStr) {
+          console.log('[getCachedDailyProblem] Valid cached problem found for today:', cachedData.problem.id);
+          return cachedData.problem;
+        } else if (cachedData.problem.date < todayStr) {
+          console.log(`[getCachedDailyProblem] Cached problem is for a past date (${cachedData.problem.date}). Fetching new for ${todayStr}.`);
+        } else { // cachedData.problem.date > todayStr
+          console.log(`[getCachedDailyProblem] Cached problem is for a future date (${cachedData.problem.date}). This is unexpected. Fetching new for ${todayStr}.`);
+        }
+      } else {
+        console.warn('[getCachedDailyProblem] Cache document contains invalid or missing problem data. Problem or problem.date is problematic. Problem data:', cachedData.problem);
       }
     } else {
-      console.log('[getCachedDailyProblem] No cache document found.');
+      console.log(`[getCachedDailyProblem] No cache document found at ${DAILY_PROBLEM_CACHE_DOC_PATH}. Will fetch new problem.`);
     }
-    return null;
+    return null; // If no valid problem for today is found in cache
   } catch (error) {
     console.error('Error fetching cached daily problem:', error);
     return null;
@@ -324,8 +326,8 @@ export const cacheDailyProblem = async (problem: DailyChallenge): Promise<void> 
   try {
     const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
     const cacheData: DailyProblemCache = {
-      cachedDate: new Date().toISOString().split('T')[0], // Date when this cache entry was created/updated
-      problem: problem, // The problem object itself, which includes its intended active 'date'
+      cachedDate: new Date().toISOString().split('T')[0], 
+      problem: problem, 
     };
     await setDoc(cacheDocRef, cacheData);
     console.log('[cacheDailyProblem] Problem cached:', problem.id, 'for date:', problem.date);
@@ -842,3 +844,4 @@ export const seedCampaigns = async () => {
   }
 };
     
+
