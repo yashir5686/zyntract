@@ -91,7 +91,7 @@ export const getCampaignApplicationForUser = async (userId: string, campaignId: 
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        appliedAt: serialized.appliedAtTimestamp as string,
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -118,7 +118,7 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        appliedAt: serialized.appliedAtTimestamp as string,
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -143,7 +143,7 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        appliedAt: serialized.appliedAtTimestamp as string,
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -193,8 +193,8 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
       status: 'approved',
       userName: userData.displayName || userData.username || 'Anonymous',
       userEmail: userData.email || 'N/A',
-      campaignName: campaignName || 'N/A', // Campaign name should ideally be passed correctly
-      appliedAtTimestamp: String(serverTimestamp())
+      campaignName: campaignName || 'N/A',
+      appliedAtTimestamp: serverTimestamp() // Use serverTimestamp here
     };
     const docRef = await addDoc(applicationsCol, applicationData);
     return docRef.id;
@@ -253,7 +253,6 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         });
     }
 
-    // For the return type, ensure 'submittedAt' is derived correctly if needed by client immediately
     const rawReturnData = await getDoc(submissionRef);
     const serializedReturn = serializeFirestoreData(rawReturnData.data()!);
 
@@ -261,8 +260,8 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         userId: serializedReturn.userId,
         challengeId: serializedReturn.challengeId,
         solution: serializedReturn.solution,
-        submittedAt: serializedReturn.submittedAtTimestamp as string, // Explicit mapping
-        pointsAwarded: 10 // Example points
+        submittedAt: serializedReturn.submittedAtTimestamp as string,
+        pointsAwarded: 10
     } as UserSolution;
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
@@ -345,8 +344,6 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
 export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    // Firestore Timestamps should be handled by serverTimestamp() directly in the update object where needed
-    // or ensured they are not accidentally converted to strings before write if they are meant to be Timestamps
     await updateDoc(userRef, data);
   } catch (error) {
     console.error("Error updating user profile: ", error);
@@ -364,11 +361,10 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
     const newCourseDataWithTimestamp = {
       ...courseData,
       campaignId,
-      createdAtTimestamp: serverTimestamp(), // Use a distinct name for Firestore Timestamp
+      createdAtTimestamp: serverTimestamp(),
     };
     const docRef = await addDoc(coursesColRef, newCourseDataWithTimestamp);
 
-    // Fetch the document to get the server-generated timestamp
     const newDocSnap = await getDoc(docRef);
     const rawData = newDocSnap.data();
     if (!rawData) throw new Error("Failed to fetch newly added course.");
@@ -381,7 +377,7 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
         description: serialized.description,
         courseUrl: serialized.courseUrl,
         resources: serialized.resources,
-        createdAt: serialized.createdAtTimestamp as string, // Map from timestamp field
+        createdAt: serialized.createdAtTimestamp as string,
      } as Course;
   } catch (error) {
     console.error('Error adding course:', error);
@@ -390,27 +386,47 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
 };
 
 export const getCoursesForCampaign = async (campaignId: string): Promise<Course[]> => {
+  if (!campaignId) {
+    console.error('getCoursesForCampaign called with no campaignId.');
+    return [];
+  }
   try {
     const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
-    const q = query(coursesColRef, orderBy('createdAtTimestamp', 'asc')); // Order by the timestamp field
+    // The orderBy clause requires the 'createdAtTimestamp' field to exist on documents.
+    // If courses are not showing, verify this field exists and is a Firestore Timestamp on your course documents.
+    const q = query(coursesColRef, orderBy('createdAtTimestamp', 'asc'));
     const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      console.log(`No courses found for campaignId: ${campaignId}. This could be because no courses exist, or they are missing the 'createdAtTimestamp' field required by the query's orderBy clause. Please check your Firestore data.`);
+    } else {
+      // console.log(`Fetched ${snapshot.docs.length} courses for campaignId: ${campaignId}`);
+    }
+
     return snapshot.docs.map(docSnap => {
         const rawData = docSnap.data();
         const serialized = serializeFirestoreData(rawData);
-        console.log(serialized);
+
+        let createdAtIsoString: string;
+        if (serialized.createdAtTimestamp && typeof serialized.createdAtTimestamp === 'string') {
+            createdAtIsoString = serialized.createdAtTimestamp;
+        } else {
+            console.warn(`Course ${docSnap.id} for campaign ${campaignId} is missing or has an invalid 'createdAtTimestamp'. Using current date as fallback for 'createdAt'. Original rawData.createdAtTimestamp:`, rawData.createdAtTimestamp);
+            createdAtIsoString = new Date().toISOString(); 
+        }
+
         return {
             id: docSnap.id,
-            campaignId: serialized.campaignId,
-            title: serialized.title,
-            description: serialized.description,
-            courseUrl: serialized.courseUrl,
-            resources: serialized.resources,
-            createdAt: serialized.createdAtTimestamp as string, // Map from timestamp field
+            campaignId: serialized.campaignId || campaignId,
+            title: serialized.title || 'Untitled Course',
+            description: serialized.description || 'No description available.',
+            courseUrl: serialized.courseUrl || '#',
+            resources: serialized.resources || [],
+            createdAt: createdAtIsoString,
         } as Course;
     });
   } catch (error) {
-    console.log("error getting courses")
-    console.error('Error fetching courses:', error);
+    console.error(`Error fetching courses for campaignId ${campaignId}:`, error);
     return [];
   }
 };
@@ -558,9 +574,9 @@ export const submitOrUpdateCourseCertificate = async (
       userEmail: userProfile.email || 'N/A',
       certificateUrl,
       status: 'review',
-      submittedAtTimestamp: serverTimestamp(), // For ordering and conversion
-      reviewedAtTimestamp: null, // Explicitly null on new/resubmission
-      adminNotes: null, // Explicitly null on new/resubmission
+      submittedAtTimestamp: serverTimestamp(),
+      reviewedAtTimestamp: null,
+      adminNotes: null,
     };
 
     let docId: string;
@@ -576,13 +592,12 @@ export const submitOrUpdateCourseCertificate = async (
       if (existingData.status === 'approved') {
         throw new Error('Cannot update an approved certificate.');
       }
-      // For resubmission, update URL, reset status to review, update timestamp, clear review fields
       await updateDoc(doc(db, 'userCourseCertificates', docId), {
         certificateUrl: dataToUpsert.certificateUrl,
         userName: dataToUpsert.userName,
         userEmail: dataToUpsert.userEmail,
-        status: 'review', // Reset to review
-        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp, // Update submission time
+        status: 'review',
+        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp,
         reviewedAtTimestamp: null,
         adminNotes: null,
       });
@@ -687,7 +702,7 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
 export const updateCertificateStatusByAdmin = async (certificateId: string, status: 'approved' | 'rejected', adminNotes?: string): Promise<void> => {
   try {
     const certRef = doc(db, 'userCourseCertificates', certificateId);
-    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = { // Ensure reviewedAtTimestamp is part of the type for update
+    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = { 
       status,
       reviewedAtTimestamp: serverTimestamp(),
     };
@@ -699,7 +714,7 @@ export const updateCertificateStatusByAdmin = async (certificateId: string, stat
        updateData.adminNotes = null;
     }
 
-    await updateDoc(certRef, updateData as any); // Cast to any if type complains about reviewedAtTimestamp during update
+    await updateDoc(certRef, updateData as any);
   } catch (error) {
     console.error('Error updating certificate status by admin:', error);
     throw error;
@@ -777,3 +792,4 @@ export const seedDailyChallenge = async () => {
   }
 };
 
+    
