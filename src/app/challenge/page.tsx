@@ -1,16 +1,21 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserProfile, getUserDailyChallengeSubmission } from '@/lib/firebase/firestore'; 
+import { 
+  getUserProfile, 
+  getUserDailyChallengeSubmission, 
+  getAllSubmissionsForDailyProblem 
+} from '@/lib/firebase/firestore'; 
 import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
 import type { DailyChallenge, UserProfile, UserDailyChallengeSubmission } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
+import SubmissionsReviewList from '@/components/challenge/SubmissionsReviewList';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Zap, TrendingUp, AlertCircle, Loader2, Eye, ShieldCheck } from 'lucide-react';
+import { Zap, TrendingUp, AlertCircle, Loader2, Eye, ShieldCheck, ListChecks } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -21,6 +26,8 @@ export default function DailyChallengePage() {
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
   const [userSubmission, setUserSubmission] = useState<UserDailyChallengeSubmission | null>(null);
   const [isLoadingSubmission, setIsLoadingSubmission] = useState(true);
+  const [allSubmissions, setAllSubmissions] = useState<UserDailyChallengeSubmission[]>([]);
+  const [isLoadingAllSubmissions, setIsLoadingAllSubmissions] = useState(false);
   const [currentViewMode, setCurrentViewMode] = useState<'admin' | 'user'>('user');
 
   useEffect(() => {
@@ -31,32 +38,42 @@ export default function DailyChallengePage() {
     }
   }, [isAdmin]);
 
-  useEffect(() => {
-    const fetchChallengeAndSubmission = async () => {
-      setIsLoadingChallenge(true);
-      setIsLoadingSubmission(true);
+  const fetchChallengeData = useCallback(async () => {
+    setIsLoadingChallenge(true);
+    setIsLoadingSubmission(true);
 
-      console.log("Fetching daily programming problem for challenge page...");
-      const currentChallenge = await fetchDailyProgrammingProblem(); 
-      setChallenge(currentChallenge);
-      setIsLoadingChallenge(false);
+    console.log("Fetching daily programming problem for challenge page...");
+    const currentChallenge = await fetchDailyProgrammingProblem(); 
+    setChallenge(currentChallenge);
+    setIsLoadingChallenge(false);
 
-      if (currentChallenge && user) {
-        console.log("Fetching user submission for challenge (problem ID):", currentChallenge.id, "on date:", currentChallenge.date);
-        const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.date);
-        setUserSubmission(submission);
-      } else if (!currentChallenge) {
-        console.log("No challenge fetched for today, skipping submission fetch.");
-      } else if (!user) {
-        console.log("User not logged in, skipping submission fetch.");
-      }
-      setIsLoadingSubmission(false);
-    };
-
-    if (!authLoading) { 
-        fetchChallengeAndSubmission();
+    if (currentChallenge && user) {
+      console.log("Fetching user submission for challenge (problem ID):", currentChallenge.id, "on date:", currentChallenge.date);
+      const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.date);
+      setUserSubmission(submission);
     }
-  }, [user, authLoading]); 
+    setIsLoadingSubmission(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading) { 
+        fetchChallengeData();
+    }
+  }, [authLoading, fetchChallengeData]); 
+
+  const fetchAllSubmissionsForAdmin = useCallback(async () => {
+    if (isAdmin && currentViewMode === 'admin' && challenge) {
+      setIsLoadingAllSubmissions(true);
+      const submissions = await getAllSubmissionsForDailyProblem(challenge.date);
+      setAllSubmissions(submissions);
+      setIsLoadingAllSubmissions(false);
+    }
+  }, [isAdmin, currentViewMode, challenge]);
+
+  useEffect(() => {
+    fetchAllSubmissionsForAdmin();
+  }, [fetchAllSubmissionsForAdmin]);
+
 
   useEffect(() => {
     if (user) {
@@ -66,6 +83,19 @@ export default function DailyChallengePage() {
 
   const handleSolutionSubmitted = (submission: UserDailyChallengeSubmission) => {
     setUserSubmission(submission); 
+    // If admin submitted through user view, refresh admin list too
+    if (isAdmin && currentViewMode === 'admin') {
+        fetchAllSubmissionsForAdmin();
+    }
+  };
+  
+  const handleSubmissionReviewed = () => {
+    // Re-fetch all submissions for admin view
+    fetchAllSubmissionsForAdmin();
+    // Re-fetch current user's submission if they are the one being reviewed (edge case, but good practice)
+    if (challenge && user) {
+        getUserDailyChallengeSubmission(user.uid, challenge.date).then(setUserSubmission);
+    }
   };
 
   const handleToggleView = () => {
@@ -82,7 +112,7 @@ export default function DailyChallengePage() {
     );
   }
 
-  if (!user && currentViewMode === 'user') { // Only gate user view if not logged in
+  if (!user && currentViewMode === 'user') { 
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">Access Denied</h1>
@@ -96,7 +126,7 @@ export default function DailyChallengePage() {
     );
   }
   
-  const displayLoading = isLoadingChallenge || (challenge && user && isLoadingSubmission && currentViewMode === 'user');
+  const displayLoadingUserView = isLoadingChallenge || (challenge && user && isLoadingSubmission && currentViewMode === 'user');
   const showAdminView = isAdmin && currentViewMode === 'admin';
 
   return (
@@ -117,10 +147,35 @@ export default function DailyChallengePage() {
         // Admin View
         <>
           <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge (Admin Panel)</h1>
-          {isLoadingChallenge ? ( // Admin view also needs to load the challenge to display it
+          {isLoadingChallenge ? ( 
             <ChallengeSkeleton />
           ) : challenge ? (
-            <ChallengeDisplay challenge={challenge} />
+            <>
+                <ChallengeDisplay challenge={challenge} />
+                <Card className="mt-8">
+                    <CardHeader>
+                        <CardTitle className="font-headline text-xl flex items-center"><ListChecks className="mr-2 h-5 w-5 text-primary"/> Review Submissions</CardTitle>
+                        <CardDescription>Review and manage user submissions for today's challenge: "{challenge.title}".</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingAllSubmissions ? (
+                             <div className="flex justify-center items-center py-10">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                <p className="ml-2 text-muted-foreground">Loading submissions...</p>
+                            </div>
+                        ) : allSubmissions.length > 0 ? (
+                            <SubmissionsReviewList 
+                                submissions={allSubmissions}
+                                dailyProblemDate={challenge.date}
+                                challengePoints={challenge.points}
+                                onSubmissionUpdate={handleSubmissionReviewed}
+                            />
+                        ) : (
+                            <p className="text-muted-foreground text-center py-6">No submissions yet for this challenge.</p>
+                        )}
+                    </CardContent>
+                </Card>
+            </>
           ) : (
             <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -128,28 +183,18 @@ export default function DailyChallengePage() {
               <p className="text-muted-foreground">Could not fetch a programming challenge. Please try again later!</p>
             </div>
           )}
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="font-headline text-xl">Admin Controls</CardTitle>
-              <CardDescription>Manage daily challenges and review submissions.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Admin panel for daily challenge submissions and management (e.g., view all submissions for today, edit current problem, manually set problem) coming soon.</p>
-              {/* Potential future components: <AllSubmissionsList challengeId={challenge?.id} /> <EditDailyProblemForm problem={challenge} /> */}
-            </CardContent>
-          </Card>
         </>
       ) : (
         // User View
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="lg:w-2/3">
             <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge</h1>
-            {displayLoading ? (
+            {displayLoadingUserView ? (
               <ChallengeSkeleton />
             ) : challenge ? (
               <>
                 <ChallengeDisplay challenge={challenge} />
-                {user && ( // Ensure user is loaded before showing solution form
+                {user && ( 
                    <SolutionForm
                       challengeId={challenge.id} 
                       dailyProblemDate={challenge.date} 
@@ -259,3 +304,4 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-12 w-full" />
   </div>
 );
+

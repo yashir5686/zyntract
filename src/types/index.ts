@@ -62,6 +62,8 @@ export interface UserDailyChallengeSubmission {
   userId: string;
   challengeId: string; // The original problem ID (e.g., Leet-123)
   dailyProblemDate: string; // The date (YYYY-MM-DD) for which this problem was assigned
+  userName?: string; // User's name at time of submission
+  userEmail?: string; // User's email at time of submission
   code: string;
   language: string;
   submittedAt: string; // ISO string

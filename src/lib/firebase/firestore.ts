@@ -222,13 +222,20 @@ export const submitDailyChallengeSolution = async (
     if (existingSubmissionSnap.exists()) {
       throw new Error('You have already submitted a solution for this challenge.');
     }
+    
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+        throw new Error('User profile not found.');
+    }
 
     const submissionData: Omit<UserDailyChallengeSubmission, 'id'> & { submittedAt: any } = {
       userId,
-      challengeId, // Store the actual problem ID
-      dailyProblemDate, // Store the date for which this problem was assigned
+      challengeId, 
+      dailyProblemDate, 
       code,
       language,
+      userName: userProfile.displayName || userProfile.username || 'Anonymous',
+      userEmail: userProfile.email || 'N/A',
       submittedAt: serverTimestamp(),
       status: 'review' as const,
       reviewedAt: null,
@@ -237,7 +244,6 @@ export const submitDailyChallengeSolution = async (
 
     await setDoc(submissionRef, submissionData);
     
-    // For returning the full object with ID and serialized dates, we re-fetch.
     const newSubmissionSnap = await getDoc(submissionRef);
     if (!newSubmissionSnap.exists()) {
         throw new Error("Failed to retrieve submission after saving.");
@@ -246,7 +252,7 @@ export const submitDailyChallengeSolution = async (
     const serialized = serializeFirestoreData(rawData);
 
     return {
-      id: newSubmissionSnap.id, // This will be the userId
+      id: newSubmissionSnap.id, 
       ...serialized,
     } as UserDailyChallengeSubmission;
 
@@ -258,7 +264,7 @@ export const submitDailyChallengeSolution = async (
 
 export const getUserDailyChallengeSubmission = async (
   userId: string,
-  dailyProblemDate: string // Date string, YYYY-MM-DD
+  dailyProblemDate: string 
 ): Promise<UserDailyChallengeSubmission | null> => {
   try {
     if (!userId || !dailyProblemDate) {
@@ -273,7 +279,7 @@ export const getUserDailyChallengeSubmission = async (
       const rawData = docSnap.data();
       const serialized = serializeFirestoreData(rawData);
       return {
-        id: docSnap.id, // This will be the userId
+        id: docSnap.id, 
         ...serialized,
       } as UserDailyChallengeSubmission;
     }
@@ -284,7 +290,86 @@ export const getUserDailyChallengeSubmission = async (
   }
 };
 
-// DAILY PROBLEM HANDLING (New Strategy)
+export const getAllSubmissionsForDailyProblem = async (dailyProblemDate: string): Promise<UserDailyChallengeSubmission[]> => {
+  try {
+    const submissionsPath = `dailyProblems/${dailyProblemDate}/submittedSolutions`;
+    const submissionsColRef = collection(db, submissionsPath);
+    const q = query(submissionsColRef, orderBy('submittedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs.map(docSnap => {
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData);
+      return {
+        id: docSnap.id, // This will be the userId
+        ...serialized,
+      } as UserDailyChallengeSubmission;
+    });
+  } catch (error) {
+    console.error(`Error fetching submissions for daily problem ${dailyProblemDate}:`, error);
+    return [];
+  }
+};
+
+export const updateDailyChallengeSubmissionStatus = async (
+  dailyProblemDate: string,
+  submissionUserId: string,
+  newStatus: 'approved' | 'rejected' | 'review',
+  adminNotes: string | null,
+  challengePoints: number
+): Promise<void> => {
+  const submissionPath = `dailyProblems/${dailyProblemDate}/submittedSolutions/${submissionUserId}`;
+  const submissionRef = doc(db, submissionPath);
+  const userProfileRef = doc(db, 'users', submissionUserId);
+
+  const batch = writeBatch(db);
+
+  try {
+    const submissionSnap = await getDoc(submissionRef);
+    if (!submissionSnap.exists()) {
+      throw new Error('Submission not found.');
+    }
+    const currentSubmission = submissionSnap.data() as UserDailyChallengeSubmission;
+    const previousStatus = currentSubmission.status;
+
+    // Update submission document
+    const submissionUpdateData: any = {
+      status: newStatus,
+      adminNotes: adminNotes || null,
+      reviewedAt: serverTimestamp(),
+    };
+    batch.update(submissionRef, submissionUpdateData);
+
+    // Update user profile if status changes involve 'approved'
+    if (newStatus === 'approved' && previousStatus !== 'approved') {
+      const userProfileSnap = await getDoc(userProfileRef);
+      if (userProfileSnap.exists()) {
+        const userProfileData = userProfileSnap.data() as UserProfile;
+        batch.update(userProfileRef, {
+          points: (userProfileData.points || 0) + challengePoints,
+          dailyChallengeStreak: (userProfileData.dailyChallengeStreak || 0) + 1,
+        });
+      }
+    } else if (newStatus !== 'approved' && previousStatus === 'approved') {
+      // Reverting an approval
+      const userProfileSnap = await getDoc(userProfileRef);
+      if (userProfileSnap.exists()) {
+        const userProfileData = userProfileSnap.data() as UserProfile;
+        batch.update(userProfileRef, {
+          points: Math.max(0, (userProfileData.points || 0) - challengePoints),
+          dailyChallengeStreak: Math.max(0, (userProfileData.dailyChallengeStreak || 0) - 1),
+        });
+      }
+    }
+    await batch.commit();
+  } catch (error) {
+    console.error('Error updating daily challenge submission status:', error);
+    throw error;
+  }
+};
+
+
+// DAILY PROBLEM HANDLING
 export const getDailyProblemByDate = async (dateString: string): Promise<DailyChallenge | null> => {
   try {
     const problemRef = doc(db, 'dailyProblems', dateString);
@@ -293,6 +378,15 @@ export const getDailyProblemByDate = async (dateString: string): Promise<DailyCh
     if (problemSnap.exists()) {
       const data = problemSnap.data();
       console.log(`[getDailyProblemByDate] Found problem for date ${dateString} in Firestore.`);
+      // Ensure the date from Firestore is a string matching dateString if it's used for validation
+      if (data.date && data.date !== dateString) {
+         console.warn(`[getDailyProblemByDate] Mismatch: Firestore doc ID is ${dateString}, but problem.date is ${data.date}. Using doc ID.`);
+         data.date = dateString; // Ensure consistency
+      } else if (!data.date) {
+         console.warn(`[getDailyProblemByDate] Problem for ${dateString} is missing 'date' field. Setting it to doc ID.`);
+         data.date = dateString;
+      }
+      
       const serializedData = serializeFirestoreData(data);
       return {
         id: serializedData.id, 
@@ -315,7 +409,7 @@ export const getDailyProblemByDate = async (dateString: string): Promise<DailyCh
 
 export const saveDailyProblem = async (problem: DailyChallenge): Promise<void> => {
   try {
-    const problemRef = doc(db, 'dailyProblems', problem.date);
+    const problemRef = doc(db, 'dailyProblems', problem.date); // Use problem.date as document ID
     const dataToSave = {
       ...problem, 
       cachedAt: serverTimestamp(), 
@@ -835,4 +929,3 @@ export const seedCampaigns = async () => {
   }
 };
     
-
