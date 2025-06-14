@@ -17,8 +17,6 @@ interface SolutionFormProps {
   onSubmitSuccess: (pointsAwarded: number) => void;
 }
 
-// This is a mock submission function for the main "Submit Solution" button.
-// Actual judging for final submission would typically involve a more robust backend.
 async function mockSubmitSolution(userId: string, challengeId: string, code: string, language: string): Promise<{ pointsAwarded: number }> {
   console.log('Submitting final solution for user', userId, 'challenge', challengeId, 'language:', language);
   await new Promise(resolve => setTimeout(resolve, 1500));
@@ -69,7 +67,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       expectedOutput: ex.output,
       explanation: ex.explanation,
       status: 'pending',
-      actualOutput: '',
+      actualOutput: '', // Ensure initialized
       stdout: '',
       stderr: '',
       build_stdout: '',
@@ -93,7 +91,6 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         console.warn("[SolutionForm] Using 'guest' API key for Paiza.IO in production. This is not recommended and may be heavily rate-limited.");
     }
 
-
     const initialResults = examples.map(ex => ({
       input: ex.input,
       expectedOutput: ex.output,
@@ -113,9 +110,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
 
     for (let i = 0; i < examples.length; i++) {
       const example = examples[i];
-      // No need to set to pending again here, initialResults already did.
-      // A 'running' status could be introduced if needed, but 'pending' with a loader is usually sufficient.
-      setTestResults([...currentTestResults]); // Update UI to show this test is being processed (though status is still 'pending')
+      setTestResults([...currentTestResults]); 
 
       try {
         const createPayload = new URLSearchParams();
@@ -133,8 +128,8 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         });
 
         if (!createResponse.ok) {
-            const errorData = await createResponse.json().catch(() => ({ error: `Paiza API Error (create): HTTP ${createResponse.status}. Response not JSON.` }));
-            throw new Error(errorData.error_description || errorData.error || `Paiza API Error (create): ${createResponse.status}`);
+            const errorData = await createResponse.json().catch(() => ({ error: `Paiza API Error (create): HTTP ${createResponse.status}. Response was not valid JSON.` }));
+            throw new Error(errorData.error_description || errorData.error || `Paiza API Error (create): HTTP ${createResponse.status}`);
         }
 
         const createResult = await createResponse.json();
@@ -158,8 +153,8 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
             const detailsResponse = await fetch(`${PAIZA_API_BASE_URL}/runners/get_details?${detailsParams.toString()}`);
             
             if (!detailsResponse.ok) {
-                const errorData = await detailsResponse.json().catch(() => ({ error: `Paiza API Error (details): HTTP ${detailsResponse.status}. Response not JSON.` }));
-                throw new Error(errorData.error_description || errorData.error || `Paiza API Error (details): ${detailsResponse.status}`);
+                const errorData = await detailsResponse.json().catch(() => ({ error: `Paiza API Error (details): HTTP ${detailsResponse.status}. Response was not valid JSON.` }));
+                throw new Error(errorData.error_description || errorData.error || `Paiza API Error (details): HTTP ${detailsResponse.status}`);
             }
 
             detailsResult = await detailsResponse.json();
@@ -179,13 +174,13 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         
         if (status !== 'completed') {
             currentTestResults[i].status = 'error';
-            currentTestResults[i].actualOutput = 'Error: Execution timed out or did not complete on Paiza.IO.';
+            currentTestResults[i].actualOutput = `Error: Execution timed out or did not complete on Paiza.IO. Last status: ${status}.`;
         } else if (detailsResult.build_exit_code !== 0 || (detailsResult.build_stderr && detailsResult.build_stderr.trim() !== '')) {
             currentTestResults[i].status = 'error';
-            currentTestResults[i].actualOutput = `Build Failed:\n${detailsResult.build_stderr || detailsResult.build_stdout || 'Unknown build error'}`;
+            currentTestResults[i].actualOutput = `Build Failed:\nExit Code: ${detailsResult.build_exit_code}\nBuild Stdout:\n${detailsResult.build_stdout || '(empty)'}\nBuild Stderr:\n${detailsResult.build_stderr || '(empty)'}`;
         } else if (detailsResult.exit_code !== 0 || (detailsResult.stderr && detailsResult.stderr.trim() !== '')) {
              currentTestResults[i].status = 'error';
-             currentTestResults[i].actualOutput = `Runtime Error:\n${detailsResult.stderr || 'Unknown runtime error'}`;
+             currentTestResults[i].actualOutput = `Runtime Error:\nExit Code: ${detailsResult.exit_code}\nStderr:\n${detailsResult.stderr || '(empty)'}`;
         } else {
             currentTestResults[i].actualOutput = (detailsResult.stdout || '').trimEnd();
             const expected = example.output.trimEnd();
@@ -198,7 +193,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       } catch (error: any) {
         console.error(`Error running test case ${i + 1}:`, error);
         currentTestResults[i].status = 'error';
-        currentTestResults[i].actualOutput = `Client-side Error: ${error.message}`;
+        currentTestResults[i].actualOutput = `Error during API call or processing: ${error.message}`;
       }
       setTestResults([...currentTestResults]); 
     }
@@ -210,9 +205,9 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         if (allPassed) {
             toast({ title: 'Tests Finished: All Passed!', description: 'Great job!', variant: 'default' });
         } else if (anyFailed) {
-            toast({ title: 'Tests Finished: Some Failed', description: 'Review the results below.', variant: 'destructive' });
-        } else {
-            toast({ title: 'Tests Finished', description: 'Review the results below.' });
+            toast({ title: 'Tests Finished: Some Failed or Errored', description: 'Review the results below.', variant: 'destructive' });
+        } else { // All pending, meaning tests were not run or something unexpected happened
+            toast({ title: 'Tests Finished', description: 'Review the results below. If no tests ran, check console for errors.' });
         }
     } else {
          toast({ title: 'No Tests Executed', description: 'There were no examples to test against.' });
@@ -236,7 +231,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       setIsSubmitting(false);
     }
   };
-
+  
   const paizaKeyStatusMessage = process.env.NEXT_PUBLIC_PAIZA_API_KEY 
     ? (process.env.NEXT_PUBLIC_PAIZA_API_KEY === 'guest' ? 'Using GUEST key (limited)' : 'Key Loaded')
     : 'Key Not Found (using GUEST)';
@@ -246,7 +241,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-xl">Code Your Solution</CardTitle>
-          <CardDescription>Select language, write code, run tests, then submit. (Paiza.IO API: {paizaKeyStatusMessage})</CardDescription>
+          <CardDescription>Select language, write code, run tests, then submit. (Paiza.IO API Status: {paizaKeyStatusMessage})</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -304,7 +299,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
               <div key={index} className={`p-3 rounded-md border ${
                 result.status === 'passed' ? 'border-green-500 bg-green-500/10' :
                 result.status === 'failed' ? 'border-red-500 bg-red-500/10' :
-                result.status === 'error' ? 'border-yellow-600 bg-yellow-600/10' : // Changed to yellow-600 for better visibility in dark mode
+                result.status === 'error' ? 'border-yellow-500 bg-yellow-500/10' :
                 'border-border bg-muted/50' 
               }`}>
                 <div className="flex items-center justify-between mb-1">
@@ -318,7 +313,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
                   </p>
                   {result.status === 'passed' && <CheckCircle className="w-5 h-5 text-green-500" />}
                   {result.status === 'failed' && <XCircle className="w-5 h-5 text-red-500" />}
-                  {result.status === 'error' && <AlertTriangle className="w-5 h-5 text-yellow-600" />}
+                  {result.status === 'error' && <AlertTriangle className="w-5 h-5 text-yellow-500" />}
                   {result.status === 'pending' && isRunningTests && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
                 </div>
                 <div className="text-xs space-y-1 ">
@@ -331,29 +326,23 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
                   {result.status !== 'pending' && result.actualOutput !== undefined && (
                      <>
                         <p className="text-muted-foreground mt-1"><strong>Actual Output:</strong></p>
-                        <pre className={`whitespace-pre-wrap p-1 rounded-sm font-mono max-h-20 overflow-y-auto ${
-                            result.status === 'error' ? 'text-yellow-700 dark:text-yellow-500 bg-yellow-600/5' : 
+                        <pre className={`whitespace-pre-wrap p-1 rounded-sm font-mono max-h-32 overflow-y-auto ${
+                            result.status === 'error' ? 'text-yellow-700 dark:text-yellow-500 bg-yellow-500/5' : 
                             result.status === 'failed' ? 'text-red-700 dark:text-red-400 bg-red-500/5' :
                             'text-foreground bg-muted/30'
                         }`}>{result.actualOutput || (result.status !== 'error' && result.status !== 'failed' ? '(No output)' : '')}</pre>
                      </>
                   )}
-                  {result.stdout && result.status !== 'error' && ( // Show raw stdout if it exists and not an error state already showing it
-                    <>
-                      <p className="text-muted-foreground mt-1"><strong>Stdout:</strong></p>
-                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-foreground bg-muted/30 max-h-20 overflow-y-auto">{result.stdout}</pre>
-                    </>
-                  )}
-                   {result.stderr && (
-                    <>
-                      <p className="text-muted-foreground mt-1"><strong>Stderr:</strong></p>
-                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-500 bg-red-500/5 max-h-20 overflow-y-auto">{result.stderr}</pre>
-                    </>
-                  )}
                   {result.build_stderr && (
                     <>
                       <p className="text-muted-foreground mt-1"><strong>Build Stderr:</strong></p>
-                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-500 bg-red-500/5 max-h-20 overflow-y-auto">{result.build_stderr}</pre>
+                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-600 dark:text-red-400 bg-red-500/5 max-h-20 overflow-y-auto">{result.build_stderr}</pre>
+                    </>
+                  )}
+                   {result.stderr && result.status === 'error' && !result.build_stderr && ( // Show runtime stderr if it exists and it's a runtime error
+                    <>
+                      <p className="text-muted-foreground mt-1"><strong>Runtime Stderr:</strong></p>
+                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-600 dark:text-red-400 bg-red-500/5 max-h-20 overflow-y-auto">{result.stderr}</pre>
                     </>
                   )}
                   {result.explanation && <p className="text-muted-foreground mt-1"><strong>Problem Explanation for Example:</strong> {result.explanation}</p>}
@@ -369,4 +358,4 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
     </form>
   );
 }
-
+    
