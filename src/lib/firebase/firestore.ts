@@ -84,9 +84,17 @@ export const getCampaignApplicationForUser = async (userId: string, campaignId: 
     const appSnapshot = await getDocs(q);
     if (!appSnapshot.empty) {
       const docData = appSnapshot.docs[0];
+      const rawData = docData.data();
+      const serialized = serializeFirestoreData(rawData);
       return {
         id: docData.id,
-        ...serializeFirestoreData(docData.data()),
+        userId: serialized.userId,
+        campaignId: serialized.campaignId,
+        status: serialized.status,
+        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        userName: serialized.userName,
+        userEmail: serialized.userEmail,
+        campaignName: serialized.campaignName,
       } as CampaignApplication;
     }
     return null;
@@ -103,18 +111,17 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
     const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAtTimestamp', 'desc'));
     const appSnapshot = await getDocs(q);
     return appSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      const serializedData = { ...data };
-      if (serializedData.appliedAtTimestamp instanceof Timestamp) {
-        serializedData.appliedAt = serializedData.appliedAtTimestamp.toDate().toISOString();
-      } else if (typeof serializedData.appliedAtTimestamp === 'object' && serializedData.appliedAtTimestamp && 'toDate' in serializedData.appliedAtTimestamp) {
-        serializedData.appliedAt = (serializedData.appliedAtTimestamp as { toDate: () => Date }).toDate().toISOString();
-      }
-
-
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData);
       return { 
         id: docSnap.id, 
-        ...serializeFirestoreData(serializedData), 
+        userId: serialized.userId,
+        campaignId: serialized.campaignId,
+        status: serialized.status,
+        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        userName: serialized.userName,
+        userEmail: serialized.userEmail,
+        campaignName: serialized.campaignName,
       } as CampaignApplication;
     });
   } catch (error) {
@@ -129,17 +136,17 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
     const q = query(applicationsCol, where('campaignId', '==', campaignId), orderBy('appliedAtTimestamp', 'desc'));
     const appSnapshot = await getDocs(q);
     return appSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-      const serializedData = { ...data };
-      if (serializedData.appliedAtTimestamp instanceof Timestamp) {
-        serializedData.appliedAt = serializedData.appliedAtTimestamp.toDate().toISOString();
-      } else if (typeof serializedData.appliedAtTimestamp === 'object' && serializedData.appliedAtTimestamp && 'toDate' in serializedData.appliedAtTimestamp) {
-        serializedData.appliedAt = (serializedData.appliedAtTimestamp as { toDate: () => Date }).toDate().toISOString();
-      }
-
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData);
       return { 
         id: docSnap.id, 
-        ...serializeFirestoreData(serializedData),
+        userId: serialized.userId,
+        campaignId: serialized.campaignId,
+        status: serialized.status,
+        appliedAt: serialized.appliedAtTimestamp as string, // Explicit mapping
+        userName: serialized.userName,
+        userEmail: serialized.userEmail,
+        campaignName: serialized.campaignName,
       } as CampaignApplication;
     });
   } catch (error) {
@@ -184,9 +191,9 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
       userId,
       campaignId,
       status: 'approved', 
-      userName: userData.displayName || userData.username || 'N/A',
-      userEmail: userData.email || email,
-      campaignName: campaignName || 'N/A',
+      userName: userData.displayName || userData.username || 'Anonymous',
+      userEmail: userData.email || 'N/A',
+      campaignName: campaignName || 'N/A', // Campaign name should ideally be passed correctly
       appliedAtTimestamp: serverTimestamp()
     };
     const docRef = await addDoc(applicationsCol, applicationData);
@@ -246,7 +253,17 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         });
     }
     
-    return { ...userSolutionData, submittedAt: new Date().toISOString(), pointsAwarded: 10 };
+    // For the return type, ensure 'submittedAt' is derived correctly if needed by client immediately
+    const rawReturnData = await getDoc(submissionRef);
+    const serializedReturn = serializeFirestoreData(rawReturnData.data()!);
+
+    return { 
+        userId: serializedReturn.userId,
+        challengeId: serializedReturn.challengeId,
+        solution: serializedReturn.solution,
+        submittedAt: serializedReturn.submittedAtTimestamp as string, // Explicit mapping
+        pointsAwarded: 10 // Example points
+    } as UserSolution;
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
     throw error; 
@@ -259,7 +276,22 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
-      return serializeFirestoreData(userSnap.data()) as UserProfile;
+      const rawData = userSnap.data();
+      const serialized = serializeFirestoreData(rawData);
+      return {
+        uid: serialized.uid,
+        email: serialized.email,
+        displayName: serialized.displayName,
+        photoURL: serialized.photoURL,
+        username: serialized.username,
+        phoneNumber: serialized.phoneNumber,
+        dailyChallengeStreak: serialized.dailyChallengeStreak,
+        points: serialized.points,
+        isAdmin: serialized.isAdmin,
+        profileCompleted: serialized.profileCompleted,
+        createdAt: serialized.createdAtTimestamp ? serialized.createdAtTimestamp as string : (serialized.createdAt as string | null),
+        lastLogin: serialized.lastLoginTimestamp ? serialized.lastLoginTimestamp as string : (serialized.lastLogin as string | null),
+      } as UserProfile;
     }
     return null;
   } catch (error) {
@@ -274,7 +306,22 @@ export const getUserProfileByUsername = async (username: string): Promise<UserPr
     const q = query(usersRef, where('username', '==', username.toLowerCase()), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      return serializeFirestoreData(querySnapshot.docs[0].data()) as UserProfile;
+      const rawData = querySnapshot.docs[0].data();
+      const serialized = serializeFirestoreData(rawData);
+       return {
+        uid: serialized.uid,
+        email: serialized.email,
+        displayName: serialized.displayName,
+        photoURL: serialized.photoURL,
+        username: serialized.username,
+        phoneNumber: serialized.phoneNumber,
+        dailyChallengeStreak: serialized.dailyChallengeStreak,
+        points: serialized.points,
+        isAdmin: serialized.isAdmin,
+        profileCompleted: serialized.profileCompleted,
+        createdAt: serialized.createdAtTimestamp ? serialized.createdAtTimestamp as string : (serialized.createdAt as string | null),
+        lastLogin: serialized.lastLoginTimestamp ? serialized.lastLoginTimestamp as string : (serialized.lastLogin as string | null),
+      } as UserProfile;
     }
     return null;
   } catch (error) {
@@ -298,14 +345,9 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
 export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    const updateData: Partial<UserProfile> = { ...data };
-    if (updateData.createdAt && typeof updateData.createdAt === 'string') {
-        // If it's already a string, it might be from client, keep as is or re-evaluate if it needs to be a serverTimestamp
-    }
-    if (updateData.lastLogin && typeof updateData.lastLogin === 'string') {
-        // Same as createdAt
-    }
-    await updateDoc(userRef, updateData);
+    // Firestore Timestamps should be handled by serverTimestamp() directly in the update object where needed
+    // or ensured they are not accidentally converted to strings before write if they are meant to be Timestamps
+    await updateDoc(userRef, data);
   } catch (error) {
     console.error("Error updating user profile: ", error);
     throw error;
@@ -319,14 +361,28 @@ export const updateUserProfile = async (userId: string, data: Partial<UserProfil
 export const addCourseToCampaign = async (campaignId: string, courseData: Omit<Course, 'id' | 'campaignId' | 'createdAt'>): Promise<Course> => {
   try {
     const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
-    const newCourseData = {
+    const newCourseDataWithTimestamp = {
       ...courseData,
       campaignId,
-      createdAt: serverTimestamp(),
+      createdAtTimestamp: serverTimestamp(), // Use a distinct name for Firestore Timestamp
     };
-    const docRef = await addDoc(coursesColRef, newCourseData);
-    const serializedNewData = serializeFirestoreData(newCourseData);
-    return { id: docRef.id, ...serializedNewData, createdAt: new Date().toISOString() } as Course;
+    const docRef = await addDoc(coursesColRef, newCourseDataWithTimestamp);
+    
+    // Fetch the document to get the server-generated timestamp
+    const newDocSnap = await getDoc(docRef);
+    const rawData = newDocSnap.data();
+    if (!rawData) throw new Error("Failed to fetch newly added course.");
+    const serialized = serializeFirestoreData(rawData);
+
+    return {
+        id: docRef.id,
+        campaignId: serialized.campaignId,
+        title: serialized.title,
+        description: serialized.description,
+        courseUrl: serialized.courseUrl,
+        resources: serialized.resources,
+        createdAt: serialized.createdAtTimestamp as string, // Map from timestamp field
+     } as Course;
   } catch (error) {
     console.error('Error adding course:', error);
     throw error;
@@ -336,9 +392,21 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
 export const getCoursesForCampaign = async (campaignId: string): Promise<Course[]> => {
   try {
     const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
-    const q = query(coursesColRef, orderBy('createdAt', 'asc'));
+    const q = query(coursesColRef, orderBy('createdAtTimestamp', 'asc')); // Order by the timestamp field
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as Course));
+    return snapshot.docs.map(docSnap => {
+        const rawData = docSnap.data();
+        const serialized = serializeFirestoreData(rawData);
+        return {
+            id: docSnap.id,
+            campaignId: serialized.campaignId,
+            title: serialized.title,
+            description: serialized.description,
+            courseUrl: serialized.courseUrl,
+            resources: serialized.resources,
+            createdAt: serialized.createdAtTimestamp as string, // Map from timestamp field
+        } as Course;
+    });
   } catch (error) {
     console.error('Error fetching courses:', error);
     return [];
@@ -349,14 +417,25 @@ export const getCoursesForCampaign = async (campaignId: string): Promise<Course[
 export const addProjectToCampaign = async (campaignId: string, projectData: Omit<Project, 'id' | 'campaignId' | 'createdAt'>): Promise<Project> => {
   try {
     const projectsColRef = collection(db, 'campaigns', campaignId, 'projects');
-    const newProjectData = {
+    const newProjectDataWithTimestamp = {
         ...projectData,
         campaignId,
-        createdAt: serverTimestamp(),
+        createdAtTimestamp: serverTimestamp(),
     };
-    const docRef = await addDoc(projectsColRef, newProjectData);
-    const serializedNewData = serializeFirestoreData(newProjectData);
-    return { id: docRef.id, ...serializedNewData, createdAt: new Date().toISOString() } as Project;
+    const docRef = await addDoc(projectsColRef, newProjectDataWithTimestamp);
+    const newDocSnap = await getDoc(docRef);
+    const rawData = newDocSnap.data();
+    if (!rawData) throw new Error("Failed to fetch newly added project.");
+    const serialized = serializeFirestoreData(rawData);
+    return { 
+        id: docRef.id, 
+        campaignId: serialized.campaignId,
+        title: serialized.title,
+        description: serialized.description,
+        submissionLinkRequired: serialized.submissionLinkRequired,
+        learningObjectives: serialized.learningObjectives,
+        createdAt: serialized.createdAtTimestamp as string,
+    } as Project;
   } catch (error) {
     console.error('Error adding project:', error);
     throw error;
@@ -366,10 +445,23 @@ export const addProjectToCampaign = async (campaignId: string, projectData: Omit
 export const getProjectsForCampaign = async (campaignId: string): Promise<Project[]> => {
    try {
     const projectsColRef = collection(db, 'campaigns', campaignId, 'projects');
-    const q = query(projectsColRef, orderBy('createdAt', 'asc'));
+    const q = query(projectsColRef, orderBy('createdAtTimestamp', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as Project));
-  } catch (error) {
+    return snapshot.docs.map(docSnap => {
+        const rawData = docSnap.data();
+        const serialized = serializeFirestoreData(rawData);
+        return {
+            id: docSnap.id,
+            campaignId: serialized.campaignId,
+            title: serialized.title,
+            description: serialized.description,
+            submissionLinkRequired: serialized.submissionLinkRequired,
+            learningObjectives: serialized.learningObjectives,
+            createdAt: serialized.createdAtTimestamp as string,
+        } as Project;
+    });
+  } catch (error)
+{
     console.error('Error fetching projects:', error);
     return [];
   }
@@ -379,14 +471,28 @@ export const getProjectsForCampaign = async (campaignId: string): Promise<Projec
 export const addQuizChallengeToCampaign = async (campaignId: string, quizData: Omit<QuizChallenge, 'id' | 'campaignId' | 'createdAt'>): Promise<QuizChallenge> => {
   try {
     const quizzesColRef = collection(db, 'campaigns', campaignId, 'quizzes');
-    const newQuizData = {
+    const newQuizDataWithTimestamp = {
         ...quizData,
         campaignId,
-        createdAt: serverTimestamp(),
+        createdAtTimestamp: serverTimestamp(),
     };
-    const docRef = await addDoc(quizzesColRef, newQuizData);
-    const serializedNewData = serializeFirestoreData(newQuizData);
-    return { id: docRef.id, ...serializedNewData, createdAt: new Date().toISOString() } as QuizChallenge;
+    const docRef = await addDoc(quizzesColRef, newQuizDataWithTimestamp);
+    const newDocSnap = await getDoc(docRef);
+    const rawData = newDocSnap.data();
+    if (!rawData) throw new Error("Failed to fetch newly added quiz.");
+    const serialized = serializeFirestoreData(rawData);
+    return {
+        id: docRef.id,
+        campaignId: serialized.campaignId,
+        title: serialized.title,
+        description: serialized.description,
+        type: serialized.type,
+        points: serialized.points,
+        questions: serialized.questions,
+        codingPrompt: serialized.codingPrompt,
+        testCases: serialized.testCases,
+        createdAt: serialized.createdAtTimestamp as string,
+    } as QuizChallenge;
   } catch (error) {
     console.error('Error adding quiz/challenge:', error);
     throw error;
@@ -396,9 +502,24 @@ export const addQuizChallengeToCampaign = async (campaignId: string, quizData: O
 export const getQuizChallengesForCampaign = async (campaignId: string): Promise<QuizChallenge[]> => {
   try {
     const quizzesColRef = collection(db, 'campaigns', campaignId, 'quizzes');
-    const q = query(quizzesColRef, orderBy('createdAt', 'asc'));
+    const q = query(quizzesColRef, orderBy('createdAtTimestamp', 'asc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as QuizChallenge));
+    return snapshot.docs.map(docSnap => {
+        const rawData = docSnap.data();
+        const serialized = serializeFirestoreData(rawData);
+        return {
+            id: docSnap.id,
+            campaignId: serialized.campaignId,
+            title: serialized.title,
+            description: serialized.description,
+            type: serialized.type,
+            points: serialized.points,
+            questions: serialized.questions,
+            codingPrompt: serialized.codingPrompt,
+            testCases: serialized.testCases,
+            createdAt: serialized.createdAtTimestamp as string,
+        } as QuizChallenge;
+    });
   } catch (error) {
     console.error('Error fetching quizzes:', error);
     return [];
@@ -427,7 +548,7 @@ export const submitOrUpdateCourseCertificate = async (
     );
     const snapshot = await getDocs(q);
 
-    const dataToUpsert: Omit<UserCourseCertificate, 'id' | 'submittedAt' | 'reviewedAt' | 'adminNotes'> & { submittedAtTimestamp: any } = {
+    const dataToUpsert = {
       userId,
       campaignId,
       courseId,
@@ -435,11 +556,12 @@ export const submitOrUpdateCourseCertificate = async (
       userEmail: userProfile.email || 'N/A',
       certificateUrl,
       status: 'review', 
-      submittedAtTimestamp: serverTimestamp(),
+      submittedAtTimestamp: serverTimestamp(), // For ordering and conversion
+      reviewedAtTimestamp: null, // Explicitly null on new/resubmission
+      adminNotes: null, // Explicitly null on new/resubmission
     };
 
     let docId: string;
-    let newStatus: UserCourseCertificate['status'] = 'review';
 
     if (snapshot.empty) {
       const docRef = await addDoc(certificatesCol, dataToUpsert);
@@ -452,23 +574,38 @@ export const submitOrUpdateCourseCertificate = async (
       if (existingData.status === 'approved') {
         throw new Error('Cannot update an approved certificate.');
       }
+      // For resubmission, update URL, reset status to review, update timestamp, clear review fields
       await updateDoc(doc(db, 'userCourseCertificates', docId), {
         certificateUrl: dataToUpsert.certificateUrl,
-        userName: dataToUpsert.userName, // Ensure these are updated too
+        userName: dataToUpsert.userName, 
         userEmail: dataToUpsert.userEmail,
-        status: newStatus,
-        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp,
+        status: 'review', // Reset to review
+        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp, // Update submission time
         reviewedAtTimestamp: null, 
         adminNotes: null, 
       });
     }
     
-    const finalDoc = await getDoc(doc(db, 'userCourseCertificates', docId));
-    if (!finalDoc.exists()) {
+    const finalDocSnap = await getDoc(doc(db, 'userCourseCertificates', docId));
+    if (!finalDocSnap.exists()) {
         throw new Error('Failed to retrieve certificate after submission.');
     }
+    const rawFinalData = finalDocSnap.data();
+    const serializedFinal = serializeFirestoreData(rawFinalData);
 
-    return { id: finalDoc.id, ...serializeFirestoreData(finalDoc.data()) } as UserCourseCertificate;
+    return { 
+        id: finalDocSnap.id,
+        userId: serializedFinal.userId,
+        campaignId: serializedFinal.campaignId,
+        courseId: serializedFinal.courseId,
+        userName: serializedFinal.userName,
+        userEmail: serializedFinal.userEmail,
+        certificateUrl: serializedFinal.certificateUrl,
+        status: serializedFinal.status,
+        submittedAt: serializedFinal.submittedAtTimestamp as string,
+        reviewedAt: serializedFinal.reviewedAtTimestamp ? serializedFinal.reviewedAtTimestamp as string : null,
+        adminNotes: serializedFinal.adminNotes || null,
+     } as UserCourseCertificate;
 
   } catch (error) {
     console.error('Error submitting/updating course certificate:', error);
@@ -490,8 +627,23 @@ export const getUserCourseCertificateForCourse = async (
     );
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      const docData = snapshot.docs[0];
-      return { id: docData.id, ...serializeFirestoreData(docData.data()) } as UserCourseCertificate;
+      const docSnap = snapshot.docs[0];
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData); 
+
+      return {
+        id: docSnap.id,
+        userId: serialized.userId,
+        campaignId: serialized.campaignId,
+        courseId: serialized.courseId,
+        userName: serialized.userName, 
+        userEmail: serialized.userEmail, 
+        certificateUrl: serialized.certificateUrl,
+        status: serialized.status,
+        submittedAt: serialized.submittedAtTimestamp as string, 
+        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null, 
+        adminNotes: serialized.adminNotes || null,
+      } as UserCourseCertificate;
     }
     return null;
   } catch (error) {
@@ -506,7 +658,24 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
     const certificatesCol = collection(db, 'userCourseCertificates');
     const q = query(certificatesCol, where('courseId', '==', courseId), orderBy('submittedAtTimestamp', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as UserCourseCertificate));
+    return snapshot.docs.map(docSnap => {
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData); 
+
+      return {
+        id: docSnap.id,
+        userId: serialized.userId,
+        campaignId: serialized.campaignId,
+        courseId: serialized.courseId,
+        userName: serialized.userName, 
+        userEmail: serialized.userEmail, 
+        certificateUrl: serialized.certificateUrl,
+        status: serialized.status,
+        submittedAt: serialized.submittedAtTimestamp as string, 
+        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null, 
+        adminNotes: serialized.adminNotes || null,
+      } as UserCourseCertificate;
+    });
   } catch (error) {
     console.error('Error fetching certificates for course (admin):', error);
     return [];
@@ -516,19 +685,19 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
 export const updateCertificateStatusByAdmin = async (certificateId: string, status: 'approved' | 'rejected', adminNotes?: string): Promise<void> => {
   try {
     const certRef = doc(db, 'userCourseCertificates', certificateId);
-    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = {
+    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = { // Ensure reviewedAtTimestamp is part of the type for update
       status,
       reviewedAtTimestamp: serverTimestamp(),
     };
-    if (adminNotes) {
+    if (adminNotes && adminNotes.trim() !== "") {
       updateData.adminNotes = adminNotes;
-    } else if (status === 'rejected' && !adminNotes) {
-      updateData.adminNotes = 'No specific reason provided.'; // Default note if none given for rejection
+    } else if (status === 'rejected' && (!adminNotes || adminNotes.trim() === "")) {
+      updateData.adminNotes = 'No specific reason provided.'; 
     } else {
-       updateData.adminNotes = null; // Clear notes if approved or no notes for rejection
+       updateData.adminNotes = null; 
     }
 
-    await updateDoc(certRef, updateData);
+    await updateDoc(certRef, updateData as any); // Cast to any if type complains about reviewedAtTimestamp during update
   } catch (error) {
     console.error('Error updating certificate status by admin:', error);
     throw error;
