@@ -5,7 +5,7 @@ import type { UserProfile, Campaign, CampaignApplication } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { UserCircle, Zap, Briefcase, CalendarDays, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { UserCircle, Zap, Briefcase, CalendarDays, CheckCircle, Clock, AlertTriangle, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
@@ -48,6 +48,10 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
     })
   );
 
+  const approvedCampaignsDetails = appliedCampaignsDetails.filter(
+    details => details.application.status === 'approved' && details.campaign
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-3xl mx-auto shadow-xl">
@@ -77,18 +81,16 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
 
           <section>
             <h2 className="font-headline text-2xl font-semibold mb-4 text-primary flex items-center">
-              <Briefcase className="w-6 h-6 mr-2" /> Campaign Applications
+              <Briefcase className="w-6 h-6 mr-2" /> Campaigns
             </h2>
-            {appliedCampaignsDetails.length > 0 ? (
+            {approvedCampaignsDetails.length > 0 ? (
               <div className="space-y-4">
-                {appliedCampaignsDetails.map(({ application, campaign }) => (
-                  campaign && (
-                    <CampaignListItem key={application.id || campaign.id} application={application} campaign={campaign} />
-                  )
+                {approvedCampaignsDetails.map(({ application, campaign }) => (
+                  <CampaignListItem key={application.id || campaign!.id} campaign={campaign!} />
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">This user hasn't submitted any campaign applications yet.</p>
+              <p className="text-muted-foreground">This user is not currently part of any approved campaigns.</p>
             )}
           </section>
         </CardContent>
@@ -116,24 +118,10 @@ const StatCard = ({ title, value, icon }: StatCardProps) => (
 );
 
 interface CampaignListItemProps {
-  application: CampaignApplication;
   campaign: Campaign;
 }
 
-const CampaignListItem = ({ application, campaign }: CampaignListItemProps) => {
-  const getStatusBadge = (status: CampaignApplication['status']) => {
-    switch (status) {
-      case 'approved':
-        return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
-      case 'pending':
-        return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" /> Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
+const CampaignListItem = ({ campaign }: CampaignListItemProps) => {
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <div className="flex flex-col sm:flex-row">
@@ -154,10 +142,10 @@ const CampaignListItem = ({ application, campaign }: CampaignListItemProps) => {
              <Link href={`/campaign/${campaign.id}`} className="hover:underline">
                 <h3 className="font-headline text-xl font-semibold text-foreground">{campaign.name}</h3>
             </Link>
-            {getStatusBadge(application.status)}
+            <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            Applied on: {new Date(application.appliedAt).toLocaleDateString()}
+            End Date: {new Date(campaign.endDate).toLocaleDateString()}
           </p>
           <p className="text-sm text-muted-foreground line-clamp-2">{campaign.description}</p>
            <Link href={`/campaign/${campaign.id}`} className="text-sm text-primary hover:underline mt-2 inline-block">
