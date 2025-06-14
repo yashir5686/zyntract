@@ -35,7 +35,6 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
       toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please sign in to apply.' });
       return;
     }
-    // This check is theoretically redundant if button is disabled, but good for safety
     if (campaign.status !== 'ongoing' && campaign.status !== 'upcoming') {
       toast({ variant: 'destructive', title: 'Cannot Apply', description: 'This campaign is not open for applications.' });
       return;
@@ -50,7 +49,7 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
       await applyToCampaign(user.uid, campaign.id, user.displayName || undefined, user.email || undefined, campaign.name);
       toast({ title: 'Application Submitted!', description: `Your application for ${campaign.name} has been sent for review.` });
       if (onApplySuccess) onApplySuccess(campaign.id);
-      setIsDialogOpen(false); // Close dialog on success
+      setIsDialogOpen(false); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Application Failed', description: error.message || 'Could not submit application.' });
     } finally {
@@ -63,11 +62,11 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
   const getStatusBadge = () => {
     switch (campaign.status) {
       case 'ongoing':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100"><CheckCircle className="w-3 h-3 mr-1" /> Ongoing</span>;
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Ongoing</Badge>;
       case 'upcoming':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100"><Info className="w-3 h-3 mr-1" /> Upcoming</span>;
+        return <Badge variant="secondary" className="bg-blue-500 hover:bg-blue-600"><Info className="w-3 h-3 mr-1" /> Upcoming</Badge>;
       case 'past':
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"><AlertTriangle className="w-3 h-3 mr-1" /> Past</span>;
+        return <Badge variant="outline" className="bg-gray-500 hover:bg-gray-600"><AlertTriangle className="w-3 h-3 mr-1" /> Past</Badge>;
       default:
         return null;
     }
@@ -77,9 +76,9 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
   const canApply = user && (campaign.status === 'ongoing' || campaign.status === 'upcoming') && isUserEligible;
   const cannotApplyReason = () => {
     if (campaign.status === 'past') return 'Campaign Ended';
-    if (!user) return 'Sign in to Apply'; // Should not happen if button is disabled, but good fallback
+    if (!user) return 'Sign in to Apply';
     if (!isUserEligible) return 'Not Enough Points';
-    return 'Apply Now'; // Default if eligible
+    return 'Apply Now';
   };
 
   const renderApplyButton = () => {
@@ -90,20 +89,20 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           disabled={!user || campaign.status === 'past' || !isUserEligible}
         >
-          <a href={campaign.applyLink} target="_blank" rel="noopener noreferrer">
+          <a href={campaign.applyLink} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
             {campaign.status === 'past' ? 'Campaign Ended' : !user ? 'Sign in to Apply' : !isUserEligible ? 'Not Enough Points' : 'Apply via Link'}
             {canApply && <ExternalLink className="ml-2 h-4 w-4" />}
           </a>
         </Button>
       );
     } else {
-      // Internal application system
       return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button 
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
               disabled={!user || campaign.status === 'past' || isApplyingInternal || !isUserEligible}
+              onClick={(e) => e.stopPropagation()} // Prevent Link navigation
             >
               {cannotApplyReason()}
             </Button>
@@ -134,43 +133,47 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/30 transition-all duration-300 h-full bg-card">
-      {campaign.imageUrl && (
-        <div className="relative w-full h-48">
-          <Image
-            src={campaign.imageUrl}
-            alt={campaign.name}
-            fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
-            style={{ objectFit: 'cover' }}
-            data-ai-hint="technology abstract"
-          />
-        </div>
-      )}
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <CardTitle className="font-headline text-2xl mb-1">{campaign.name}</CardTitle>
-          {getStatusBadge()}
-        </div>
-        <CardDescription className="text-sm flex items-center text-muted-foreground">
-          <CalendarDays className="w-4 h-4 mr-2" />
-          {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
-        </CardDescription>
-         {campaign.requiredPoints && campaign.requiredPoints > 0 && (
-            <CardDescription className="text-sm flex items-center text-muted-foreground mt-1">
-                <Zap className="w-4 h-4 mr-2 text-accent"/>
-                Requires {campaign.requiredPoints} points
+      <Link href={`/campaign/${campaign.id}`} passHref legacyBehavior>
+        <a className="block hover:opacity-90 transition-opacity">
+          {campaign.imageUrl && (
+            <div className="relative w-full h-48">
+              <Image
+                src={campaign.imageUrl}
+                alt={campaign.name}
+                fill
+                sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                style={{ objectFit: 'cover' }}
+                data-ai-hint="technology abstract"
+              />
+            </div>
+          )}
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <CardTitle className="font-headline text-2xl mb-1 group-hover:underline">{campaign.name}</CardTitle>
+              {getStatusBadge()}
+            </div>
+            <CardDescription className="text-sm flex items-center text-muted-foreground">
+              <CalendarDays className="w-4 h-4 mr-2" />
+              {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
             </CardDescription>
-        )}
-         {campaign.applyLink && (
-            <CardDescription className="text-xs flex items-center text-accent mt-1">
-                <ExternalLink className="w-3 h-3 mr-1"/>
-                External application
-            </CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
-      </CardContent>
+            {campaign.requiredPoints && campaign.requiredPoints > 0 && (
+                <CardDescription className="text-sm flex items-center text-muted-foreground mt-1">
+                    <Zap className="w-4 h-4 mr-2 text-accent"/>
+                    Requires {campaign.requiredPoints} points
+                </CardDescription>
+            )}
+            {campaign.applyLink && (
+                <CardDescription className="text-xs flex items-center text-accent mt-1">
+                    <ExternalLink className="w-3 h-3 mr-1"/>
+                    External application
+                </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
+          </CardContent>
+        </a>
+      </Link>
       <CardFooter>
         {renderApplyButton()}
       </CardFooter>

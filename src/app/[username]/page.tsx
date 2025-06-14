@@ -52,10 +52,13 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
       <Card className="w-full max-w-3xl mx-auto shadow-xl">
         <CardHeader className="text-center p-8 bg-gradient-to-br from-card to-secondary/20 rounded-t-lg">
           <Avatar className="mx-auto h-24 w-24 mb-4 border-4 border-primary shadow-lg">
-            {/* Placeholder as custom photos are not implemented */}
-            <AvatarFallback className="text-4xl bg-primary text-primary-foreground">
-              {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : <UserCircle className="h-16 w-16" />}
-            </AvatarFallback>
+            {profile.photoURL ? (
+               <Image src={profile.photoURL} alt={profile.displayName || profile.username || 'User'} fill className="rounded-full" data-ai-hint="profile picture" />
+            ) : (
+              <AvatarFallback className="text-4xl bg-primary text-primary-foreground">
+                {profile.displayName ? profile.displayName.charAt(0).toUpperCase() : <UserCircle className="h-16 w-16" />}
+              </AvatarFallback>
+            )}
           </Avatar>
           <CardTitle className="font-headline text-4xl">{profile.displayName || 'User'}</CardTitle>
           <CardDescription className="text-xl text-primary">@{profile.username}</CardDescription>
@@ -147,15 +150,17 @@ const CampaignListItem = ({ application, campaign }: CampaignListItemProps) => {
         )}
         <div className={`p-4 ${campaign.imageUrl ? 'sm:w-2/3' : 'w-full'}`}>
           <div className="flex justify-between items-start mb-1">
-            <h3 className="font-headline text-xl font-semibold text-foreground">{campaign.name}</h3>
+             <Link href={`/campaign/${campaign.id}`} className="hover:underline">
+                <h3 className="font-headline text-xl font-semibold text-foreground">{campaign.name}</h3>
+            </Link>
             {getStatusBadge(application.status)}
           </div>
           <p className="text-xs text-muted-foreground mb-2">
             Applied on: {new Date(application.appliedAt).toLocaleDateString()}
           </p>
           <p className="text-sm text-muted-foreground line-clamp-2">{campaign.description}</p>
-           <Link href={`/dashboard`} className="text-sm text-primary hover:underline mt-2 inline-block">
-            View Campaign Details (on Dashboard)
+           <Link href={`/campaign/${campaign.id}`} className="text-sm text-primary hover:underline mt-2 inline-block">
+            View Campaign
           </Link>
         </div>
       </div>
@@ -163,7 +168,6 @@ const CampaignListItem = ({ application, campaign }: CampaignListItemProps) => {
   );
 };
 
-// Skeletons for loading state (optional, can be added for better UX)
 export function ProfilePageSkeleton() {
   return (
     <div className="container mx-auto px-4 py-8">
