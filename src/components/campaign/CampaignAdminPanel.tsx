@@ -124,6 +124,9 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
               </div>
             </DialogTrigger>
             <DialogContent className="max-w-screen-lg p-0 bg-transparent border-0 shadow-none">
+              <DialogHeader>
+                <DialogTitle className="sr-only">Enlarged campaign image: {campaign.name}</DialogTitle>
+              </DialogHeader>
               <div className="relative aspect-video max-h-[80vh]">
                 <Image
                   src={campaign.imageUrl}
@@ -277,3 +280,5 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     </div>
   );
 }
+
+    

@@ -15,7 +15,7 @@ import { getCampaignApplicationForUser, getCoursesForCampaign, getProjectsForCam
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -304,6 +304,9 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
               </div>
             </DialogTrigger>
             <DialogContent className="max-w-screen-lg p-0 bg-transparent border-0 shadow-none">
+               <DialogHeader>
+                <DialogTitle className="sr-only">Enlarged campaign image: {campaign.name}</DialogTitle>
+              </DialogHeader>
               <div className="relative aspect-video max-h-[80vh]">
                 <Image
                   src={campaign.imageUrl}
@@ -442,3 +445,5 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
     </div>
   );
 }
+
+    
