@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,13 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { addCourseToCampaign, getCoursesForCampaign } from '@/lib/firebase/firestore';
-import type { Course } from '@/types';
-import { PlusCircle, BookOpen, Loader2, LinkIcon } from 'lucide-react';
+import { addCourseToCampaign, getCoursesForCampaign, getCertificatesForCourseForAdmin } from '@/lib/firebase/firestore';
+import type { Course, UserCourseCertificate } from '@/types';
+import { PlusCircle, BookOpen, Loader2, LinkIcon, Eye, CheckSquare, XSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import CourseSubmissionsReviewDialog from './CourseSubmissionsReviewDialog';
 
 interface ManageCoursesDialogProps {
   campaignId: string;
@@ -30,11 +32,18 @@ const courseSchema = z.object({
 
 type CourseFormValues = z.infer<typeof courseSchema>;
 
+interface CourseWithSubmissionCount extends Course {
+  reviewCount: number;
+}
+
+
 export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCoursesDialogProps) {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseWithSubmissionCount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingCourses, setIsFetchingCourses] = useState(true);
   const { toast } = useToast();
+  const [selectedCourseForReview, setSelectedCourseForReview] = useState<Course | null>(null);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
 
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseSchema),
@@ -45,11 +54,18 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     },
   });
 
-  const fetchCourses = async () => {
+  const fetchCoursesWithSubmissionCounts = async () => {
     setIsFetchingCourses(true);
     try {
       const fetchedCourses = await getCoursesForCampaign(campaignId);
-      setCourses(fetchedCourses);
+      const coursesWithCounts = await Promise.all(
+        fetchedCourses.map(async (course) => {
+          const submissions = await getCertificatesForCourseForAdmin(course.id);
+          const reviewCount = submissions.filter(s => s.status === 'review').length;
+          return { ...course, reviewCount };
+        })
+      );
+      setCourses(coursesWithCounts);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error fetching courses', description: (error as Error).message });
     } finally {
@@ -58,17 +74,17 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
   };
 
   useEffect(() => {
-    fetchCourses();
+    fetchCoursesWithSubmissionCounts();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
   const onSubmit = async (data: CourseFormValues) => {
     setIsLoading(true);
     try {
-      const newCourse = await addCourseToCampaign(campaignId, data);
-      setCourses(prev => [...prev, newCourse]);
+      await addCourseToCampaign(campaignId, data);
       toast({ title: 'Course Added!', description: `${data.title} has been added.` });
       form.reset();
+      fetchCoursesWithSubmissionCounts(); // Refresh list
     } catch (error) {
       toast({ variant: 'destructive', title: 'Failed to Add Course', description: (error as Error).message });
     } finally {
@@ -76,13 +92,25 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     }
   };
 
+  const handleOpenReviewDialog = (course: Course) => {
+    setSelectedCourseForReview(course);
+    setIsReviewDialogOpen(true);
+  };
+  
+  const handleSubmissionsUpdated = () => {
+    // This function will be called by CourseSubmissionsReviewDialog when submissions are updated.
+    // Re-fetch courses to update review counts.
+    fetchCoursesWithSubmissionCounts();
+  };
+
+
   return (
     <>
       <DialogHeader>
         <DialogTitle className="font-headline text-2xl flex items-center">
           <BookOpen className="w-6 h-6 mr-2 text-primary" /> Manage Courses for Campaign
         </DialogTitle>
-        <DialogDescription>Add new courses or view existing ones for this campaign.</DialogDescription>
+        <DialogDescription>Add new courses or view existing ones for this campaign. Admins can review submitted certificates.</DialogDescription>
       </DialogHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh]">
@@ -147,16 +175,29 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
                     <div className="space-y-3">
                         {courses.map(course => (
                             <Card key={course.id} className="bg-card-foreground/5">
-                                <CardHeader className="p-3">
+                                <CardHeader className="p-3 pb-1">
                                     <CardTitle className="text-md font-semibold">{course.title}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-3 pt-0 text-xs text-muted-foreground">
                                     <p className="line-clamp-2 mb-1">{course.description}</p>
                                     <a href={course.courseUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs font-medium flex items-center">
-                                        <LinkIcon className="w-3 h-3 mr-1" /> View Course
+                                        <LinkIcon className="w-3 h-3 mr-1" /> View Course Page
                                     </a>
-                                     {/* Placeholder for Edit/Delete actions */}
                                 </CardContent>
+                                <CardFooter className="p-3 pt-0">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full text-xs"
+                                      onClick={() => handleOpenReviewDialog(course)}
+                                    >
+                                        <Eye className="w-3 h-3 mr-1.5"/> 
+                                        Review Submissions 
+                                        {course.reviewCount > 0 && (
+                                          <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-[10px] leading-none">{course.reviewCount}</Badge>
+                                        )}
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         ))}
                     </div>
@@ -164,6 +205,23 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
             </ScrollArea>
         </section>
       </div>
+
+      {selectedCourseForReview && (
+        <Dialog open={isReviewDialogOpen} onOpenChange={(open) => {
+          setIsReviewDialogOpen(open);
+          if (!open) setSelectedCourseForReview(null);
+        }}>
+          <DialogContent className="sm:max-w-3xl max-h-[90vh]"> {/* Adjusted width */}
+            <CourseSubmissionsReviewDialog 
+              courseId={selectedCourseForReview.id} 
+              courseTitle={selectedCourseForReview.title}
+              setOpen={setIsReviewDialogOpen}
+              onSubmissionsUpdated={handleSubmissionsUpdated}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
 
       <DialogFooter className="mt-4">
         <DialogClose asChild>
@@ -173,4 +231,3 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     </>
   );
 }
-

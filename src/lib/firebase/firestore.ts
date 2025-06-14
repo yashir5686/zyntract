@@ -413,6 +413,11 @@ export const submitOrUpdateCourseCertificate = async (
   certificateUrl: string
 ): Promise<UserCourseCertificate> => {
   try {
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) {
+      throw new Error('User profile not found for certificate submission.');
+    }
+
     const certificatesCol = collection(db, 'userCourseCertificates');
     const q = query(
       certificatesCol,
@@ -426,6 +431,8 @@ export const submitOrUpdateCourseCertificate = async (
       userId,
       campaignId,
       courseId,
+      userName: userProfile.displayName || userProfile.username || 'Anonymous',
+      userEmail: userProfile.email || 'N/A',
       certificateUrl,
       status: 'review', 
       submittedAtTimestamp: serverTimestamp(),
@@ -445,17 +452,17 @@ export const submitOrUpdateCourseCertificate = async (
       if (existingData.status === 'approved') {
         throw new Error('Cannot update an approved certificate.');
       }
-      // If existing and not approved, update URL and reset status to 'review'
       await updateDoc(doc(db, 'userCourseCertificates', docId), {
         certificateUrl: dataToUpsert.certificateUrl,
+        userName: dataToUpsert.userName, // Ensure these are updated too
+        userEmail: dataToUpsert.userEmail,
         status: newStatus,
         submittedAtTimestamp: dataToUpsert.submittedAtTimestamp,
-        reviewedAtTimestamp: null, // Clear previous review details
-        adminNotes: null, // Clear previous admin notes
+        reviewedAtTimestamp: null, 
+        adminNotes: null, 
       });
     }
     
-    // Fetch the potentially created/updated document to return actual server timestamp
     const finalDoc = await getDoc(doc(db, 'userCourseCertificates', docId));
     if (!finalDoc.exists()) {
         throw new Error('Failed to retrieve certificate after submission.');
@@ -493,24 +500,39 @@ export const getUserCourseCertificateForCourse = async (
   }
 };
 
-// Admin functions for certificates (Placeholders for now)
+// Admin functions for certificates
 export const getCertificatesForCourseForAdmin = async (courseId: string): Promise<UserCourseCertificate[]> => {
-    console.log("getCertificatesForCourseForAdmin called for courseId:", courseId);
-    // In a real implementation, query 'userCourseCertificates' collection
-    // where('courseId', '==', courseId).orderBy('submittedAtTimestamp', 'desc')
-    return []; 
+  try {
+    const certificatesCol = collection(db, 'userCourseCertificates');
+    const q = query(certificatesCol, where('courseId', '==', courseId), orderBy('submittedAtTimestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as UserCourseCertificate));
+  } catch (error) {
+    console.error('Error fetching certificates for course (admin):', error);
+    return [];
+  }
 };
 
 export const updateCertificateStatusByAdmin = async (certificateId: string, status: 'approved' | 'rejected', adminNotes?: string): Promise<void> => {
-    console.log("updateCertificateStatusByAdmin called for certId:", certificateId, "status:", status, "notes:", adminNotes);
-    // In a real implementation, update the document in 'userCourseCertificates'
-    // with the new status, adminNotes, and reviewedAtTimestamp: serverTimestamp()
+  try {
     const certRef = doc(db, 'userCourseCertificates', certificateId);
-    await updateDoc(certRef, {
-        status,
-        adminNotes: adminNotes || null,
-        reviewedAtTimestamp: serverTimestamp()
-    });
+    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = {
+      status,
+      reviewedAtTimestamp: serverTimestamp(),
+    };
+    if (adminNotes) {
+      updateData.adminNotes = adminNotes;
+    } else if (status === 'rejected' && !adminNotes) {
+      updateData.adminNotes = 'No specific reason provided.'; // Default note if none given for rejection
+    } else {
+       updateData.adminNotes = null; // Clear notes if approved or no notes for rejection
+    }
+
+    await updateDoc(certRef, updateData);
+  } catch (error) {
+    console.error('Error updating certificate status by admin:', error);
+    throw error;
+  }
 };
 
 

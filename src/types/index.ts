@@ -109,6 +109,8 @@ export interface UserCourseCertificate {
   userId: string;
   campaignId: string;
   courseId: string;
+  userName?: string; // Added
+  userEmail?: string; // Added
   certificateUrl: string;
   status: 'review' | 'approved' | 'rejected';
   submittedAt: string; // ISO date string, effectively from submittedAtTimestamp
@@ -117,3 +119,4 @@ export interface UserCourseCertificate {
   reviewedAtTimestamp?: any | null; // Firestore ServerTimestamp on review
   adminNotes?: string | null;
 }
+
