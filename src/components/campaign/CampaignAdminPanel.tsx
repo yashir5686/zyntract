@@ -9,6 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
+import ManageStudentsDialog from './dialogs/ManageStudentsDialog';
+import ManageProjectsDialog from './dialogs/ManageProjectsDialog';
+import ManageQuizzesDialog from './dialogs/ManageQuizzesDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface CampaignAdminPanelProps {
   campaign: Campaign;
@@ -33,12 +46,12 @@ const getStatusBadge = (status: Campaign['status']) => {
 };
 
 export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps) {
-  // Placeholder functions for admin actions
-  const handleEditCampaign = () => alert(`Editing campaign: ${campaign.name}`);
-  const handleAddCourse = () => alert('Adding a new course...');
-  const handleAddProject = () => alert('Adding a new project...');
-  const handleAddQuiz = () => alert('Adding a new quiz/challenge...');
-  const handleManageStudents = () => alert('Managing students...');
+  const [isManageCoursesOpen, setIsManageCoursesOpen] = useState(false);
+  const [isManageProjectsOpen, setIsManageProjectsOpen] = useState(false);
+  const [isManageQuizzesOpen, setIsManageQuizzesOpen] = useState(false);
+  const [isManageStudentsOpen, setIsManageStudentsOpen] = useState(false);
+
+  const handleEditCampaign = () => alert(`Editing campaign: ${campaign.name} (Not implemented yet)`);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -99,19 +112,47 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                         <CardDescription>Add or edit courses, projects, and quizzes for this campaign.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <Button onClick={handleAddCourse} className="w-full justify-start" variant="outline"><PlusCircle className="w-4 h-4 mr-2"/> Add Course</Button>
-                        <Button onClick={handleAddProject} className="w-full justify-start" variant="outline"><PlusCircle className="w-4 h-4 mr-2"/> Add Project</Button>
-                        <Button onClick={handleAddQuiz} className="w-full justify-start" variant="outline"><PlusCircle className="w-4 h-4 mr-2"/> Add Quiz/Challenge</Button>
+                        <Dialog open={isManageCoursesOpen} onOpenChange={setIsManageCoursesOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="w-full justify-start" variant="outline"><PlusCircle className="w-4 h-4 mr-2"/> Manage Courses</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <ManageCoursesDialog campaignId={campaign.id} setOpen={setIsManageCoursesOpen} />
+                            </DialogContent>
+                        </Dialog>
+                         <Dialog open={isManageProjectsOpen} onOpenChange={setIsManageProjectsOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="w-full justify-start" variant="outline"><Laptop className="w-4 h-4 mr-2"/> Manage Projects</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <ManageProjectsDialog campaignId={campaign.id} setOpen={setIsManageProjectsOpen} />
+                            </DialogContent>
+                        </Dialog>
+                         <Dialog open={isManageQuizzesOpen} onOpenChange={setIsManageQuizzesOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="w-full justify-start" variant="outline"><HelpCircle className="w-4 h-4 mr-2"/> Manage Quizzes</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                                <ManageQuizzesDialog campaignId={campaign.id} setOpen={setIsManageQuizzesOpen} />
+                            </DialogContent>
+                        </Dialog>
                     </CardContent>
                 </Card>
 
                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Manage Participants</CardTitle>
-                        <CardDescription>View, add, or remove participants from this campaign.</CardDescription>
+                        <CardDescription>View applications, enroll/remove participants from this campaign.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Button onClick={handleManageStudents} className="w-full justify-start" variant="outline"><Users2 className="w-4 h-4 mr-2"/> Manage Students</Button>
+                        <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="w-full justify-start" variant="outline"><Users2 className="w-4 h-4 mr-2"/> Manage Students</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                                <ManageStudentsDialog campaignId={campaign.id} campaignName={campaign.name} setOpen={setIsManageStudentsOpen} />
+                            </DialogContent>
+                        </Dialog>
                     </CardContent>
                 </Card>
             </div>
@@ -123,7 +164,6 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">Statistics and overview section coming soon...</p>
-                    {/* Placeholder for stats */}
                 </CardContent>
             </Card>
           </section>

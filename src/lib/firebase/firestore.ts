@@ -1,7 +1,7 @@
 
 import { db } from './config';
-import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
-import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution } from '@/types';
+import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp, writeBatch, collectionGroup } from 'firebase/firestore';
+import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution, Course, Project, QuizChallenge } from '@/types';
 
 // Helper function to serialize Firestore data
 const serializeFirestoreData = (data: Record<string, any>): Record<string, any> => {
@@ -9,7 +9,7 @@ const serializeFirestoreData = (data: Record<string, any>): Record<string, any> 
   for (const key in data) {
     if (data[key] instanceof Timestamp) {
       serializedData[key] = (data[key] as Timestamp).toDate().toISOString();
-    } else if (data[key] instanceof Date) { // Also handle JS Date objects if they sneak in
+    } else if (data[key] instanceof Date) { 
       serializedData[key] = data[key].toISOString();
     }
      else {
@@ -56,7 +56,7 @@ export const getCampaignById = async (campaignId: string): Promise<Campaign | nu
   }
 }
 
-export const addCampaign = async (campaignData: Omit<Campaign, 'id'>): Promise<string> => {
+export const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt'>): Promise<string> => {
   try {
     const campaignsCol = collection(db, 'campaigns');
     const dataToAdd: any = {
@@ -75,6 +75,7 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id'>): Promise<s
   }
 };
 
+// CAMPAIGN APPLICATIONS & ENROLLMENT
 export const applyToCampaign = async (userId: string, campaignId: string, userName?: string, userEmail?: string, campaignName?: string): Promise<string | null> => {
   try {
     const applicationsCol = collection(db, 'campaignApplications');
@@ -85,26 +86,115 @@ export const applyToCampaign = async (userId: string, campaignId: string, userNa
       throw new Error("You have already applied to this campaign.");
     }
 
-    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAt: Date } = {
+    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAtTimestamp: any } = {
       userId,
       campaignId,
       status: 'pending',
-      appliedAt: new Date(), 
       userName: userName || 'N/A',
       userEmail: userEmail || 'N/A',
       campaignName: campaignName || 'N/A',
+      appliedAtTimestamp: serverTimestamp() 
     };
     
-    const docRef = await addDoc(collection(db, 'campaignApplications'), {
-      ...applicationData,
-      appliedAtTimestamp: serverTimestamp() 
-    });
+    const docRef = await addDoc(applicationsCol, applicationData);
     return docRef.id;
   } catch (error) {
     console.error("Error applying to campaign: ", error);
     throw error;
   }
 };
+
+export const getCampaignApplicationsByUserId = async (userId: string): Promise<CampaignApplication[]> => {
+  try {
+    const applicationsCol = collection(db, 'campaignApplications');
+    const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAtTimestamp', 'desc'));
+    const appSnapshot = await getDocs(q);
+    return appSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return { 
+        id: docSnap.id, 
+        ...serializeFirestoreData(data),
+      } as CampaignApplication;
+    });
+  } catch (error) {
+    console.error("Error fetching campaign applications for user: ", error);
+    return [];
+  }
+};
+
+export const getCampaignApplicationsForCampaign = async (campaignId: string): Promise<CampaignApplication[]> => {
+  try {
+    const applicationsCol = collection(db, 'campaignApplications');
+    const q = query(applicationsCol, where('campaignId', '==', campaignId), orderBy('appliedAtTimestamp', 'desc'));
+    const appSnapshot = await getDocs(q);
+    return appSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return { 
+        id: docSnap.id, 
+        ...serializeFirestoreData(data),
+      } as CampaignApplication;
+    });
+  } catch (error) {
+    console.error("Error fetching campaign applications for campaign: ", error);
+    return [];
+  }
+};
+
+export const updateCampaignApplicationStatus = async (applicationId: string, status: CampaignApplication['status']): Promise<void> => {
+  try {
+    const appRef = doc(db, 'campaignApplications', applicationId);
+    await updateDoc(appRef, { status });
+  } catch (error) {
+    console.error("Error updating application status: ", error);
+    throw error;
+  }
+};
+
+export const enrollUserInCampaignByEmail = async (campaignId: string, email: string, campaignName?: string): Promise<string | null> => {
+  try {
+    // Find user by email
+    const usersRef = collection(db, 'users');
+    const userQuery = query(usersRef, where('email', '==', email.toLowerCase()), limit(1));
+    const userSnapshot = await getDocs(userQuery);
+
+    if (userSnapshot.empty) {
+      throw new Error(`User with email ${email} not found.`);
+    }
+    const userData = userSnapshot.docs[0].data() as UserProfile;
+    const userId = userSnapshot.docs[0].id;
+
+    // Check if already applied/enrolled
+    const applicationsCol = collection(db, 'campaignApplications');
+    const existingAppQuery = query(applicationsCol, where('userId', '==', userId), where('campaignId', '==', campaignId));
+    const existingAppSnapshot = await getDocs(existingAppQuery);
+
+    if (!existingAppSnapshot.empty) {
+       // Optionally update status if found, or just inform admin
+       const existingAppId = existingAppSnapshot.docs[0].id;
+       await updateCampaignApplicationStatus(existingAppId, 'approved');
+       return existingAppId; 
+      // throw new Error(`User ${email} is already associated with this campaign.`);
+    }
+    
+    // Create a new 'approved' application
+    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAtTimestamp: any } = {
+      userId,
+      campaignId,
+      status: 'approved',
+      userName: userData.displayName || userData.username || 'N/A',
+      userEmail: userData.email || email,
+      campaignName: campaignName || 'N/A',
+      appliedAtTimestamp: serverTimestamp()
+    };
+    const docRef = await addDoc(applicationsCol, applicationData);
+    return docRef.id;
+
+  } catch (error) {
+    console.error("Error enrolling user by email: ", error);
+    throw error;
+  }
+};
+
 
 // DAILY CHALLENGES
 export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> => {
@@ -133,14 +223,14 @@ export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> 
 
 export const submitChallengeSolution = async (userId: string, challengeId: string, solution: string): Promise<UserSolution | null> => {
   try {
-    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt'> & { submittedAt: Date } = {
+    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt' | 'submittedAtTimestamp'> & { submittedAtTimestamp: any } = {
       userId,
       challengeId,
       solution,
-      submittedAt: new Date(),
+      submittedAtTimestamp: serverTimestamp(),
     };
     const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`); 
-    await setDoc(submissionRef, { ...userSolutionData, submittedAtTimestamp: serverTimestamp() });
+    await setDoc(submissionRef, userSolutionData );
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
@@ -153,7 +243,7 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         });
     }
     
-    return { ...userSolutionData, submittedAt: userSolutionData.submittedAt.toISOString(), pointsAwarded: 10 };
+    return { ...userSolutionData, submittedAt: new Date().toISOString(), pointsAwarded: 10 };
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
     throw error; 
@@ -205,7 +295,6 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
 export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    // Ensure timestamps are handled correctly if they are part of data
     const updateData: Partial<UserProfile> = { ...data };
     if (updateData.createdAt && typeof updateData.createdAt === 'string') {
         // If it's already a string, it might be from client, keep as is or re-evaluate if it needs to be a serverTimestamp
@@ -220,50 +309,73 @@ export const updateUserProfile = async (userId: string, data: Partial<UserProfil
   }
 };
 
-export const getCampaignApplicationsByUserId = async (userId: string): Promise<CampaignApplication[]> => {
+
+// CAMPAIGN CONTENT MANAGEMENT (COURSES, PROJECTS, QUIZZES)
+
+// Courses
+export const addCourseToCampaign = async (campaignId: string, courseData: Omit<Course, 'id' | 'campaignId' | 'createdAt'>): Promise<Course> => {
   try {
-    const applicationsCol = collection(db, 'campaignApplications');
-    const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAtTimestamp', 'desc'));
-    const appSnapshot = await getDocs(q);
-    return appSnapshot.docs.map(doc => {
-      const data = doc.data();
-      // The CampaignApplication type expects appliedAt to be a string.
-      // applyToCampaign stores appliedAt as a Date, and appliedAtTimestamp as serverTimestamp.
-      // We should prioritize appliedAtTimestamp if available for accuracy.
-      let appliedAtString: string;
-      if (data.appliedAtTimestamp instanceof Timestamp) {
-        appliedAtString = data.appliedAtTimestamp.toDate().toISOString();
-      } else if (data.appliedAt instanceof Timestamp) { // Fallback to appliedAt if it's a Timestamp
-        appliedAtString = data.appliedAt.toDate().toISOString();
-      } else if (data.appliedAt instanceof Date) { // Fallback if it's a JS Date
-         appliedAtString = data.appliedAt.toISOString();
-      }
-       else if (typeof data.appliedAt === 'string') { // If it's already a string
-        appliedAtString = data.appliedAt;
-      }
-      else {
-        appliedAtString = new Date().toISOString(); // Default if no valid date found
-      }
-
-      const serializedApp = serializeFirestoreData(data);
-
-      return { 
-        id: doc.id, 
-        ...serializedApp,
-        appliedAt: appliedAtString // Ensure appliedAt is a string
-      } as CampaignApplication;
-    });
+    const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
+    const newCourseData = {
+      ...courseData,
+      campaignId,
+      createdAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(coursesColRef, newCourseData);
+    return { id: docRef.id, ...serializeFirestoreData(newCourseData), createdAt: new Date().toISOString() } as Course; // Return serialized with optimistic createdAt
   } catch (error) {
-    console.error("Error fetching campaign applications for user: ", error);
+    console.error('Error adding course:', error);
+    throw error;
+  }
+};
+
+export const getCoursesForCampaign = async (campaignId: string): Promise<Course[]> => {
+  try {
+    const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
+    const q = query(coursesColRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(docSnap => ({ id: docSnap.id, ...serializeFirestoreData(docSnap.data()) } as Course));
+  } catch (error) {
+    console.error('Error fetching courses:', error);
     return [];
   }
 };
 
+// Projects (Placeholders - to be fully implemented in a subsequent request)
+export const addProjectToCampaign = async (campaignId: string, projectData: Omit<Project, 'id' | 'campaignId' | 'createdAt'>): Promise<Project> => {
+  // Placeholder implementation
+  console.log('addProjectToCampaign called with:', campaignId, projectData);
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate async
+  return { id: 'mockProjectId', campaignId, ...projectData, createdAt: new Date().toISOString() };
+};
+
+export const getProjectsForCampaign = async (campaignId: string): Promise<Project[]> => {
+  // Placeholder implementation
+  console.log('getProjectsForCampaign called for campaignId:', campaignId);
+  return [];
+};
+
+// Quizzes/Challenges (Placeholders - to be fully implemented in a subsequent request)
+export const addQuizChallengeToCampaign = async (campaignId: string, quizData: Omit<QuizChallenge, 'id' | 'campaignId' | 'createdAt'>): Promise<QuizChallenge> => {
+  // Placeholder implementation
+  console.log('addQuizChallengeToCampaign called with:', campaignId, quizData);
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate async
+  return { id: 'mockQuizId', campaignId, ...quizData, createdAt: new Date().toISOString() };
+};
+
+export const getQuizChallengesForCampaign = async (campaignId: string): Promise<QuizChallenge[]> => {
+  // Placeholder implementation
+  console.log('getQuizChallengesForCampaign called for campaignId:', campaignId);
+  return [];
+};
+
+
+// SEEDING (Keep existing seed functions)
 export const seedCampaigns = async () => {
   const campaignsCol = collection(db, 'campaigns');
   const snapshot = await getDocs(query(campaignsCol, limit(1)));
   if (snapshot.empty) {
-    const dummyCampaigns: Omit<Campaign, 'id'>[] = [
+    const dummyCampaigns: Omit<Campaign, 'id' | 'createdAt'>[] = [
       {
         name: 'Web Dev Bootcamp',
         description: 'Master full-stack web development with React, Node.js, and Firebase.',

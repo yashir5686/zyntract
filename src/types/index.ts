@@ -11,8 +11,8 @@ export interface UserProfile {
   dailyChallengeStreak?: number;
   points?: number;
   isAdmin?: boolean;
-  createdAt?: string | null; // Changed from any
-  lastLogin?: string | null; // Changed from any
+  createdAt?: string | null; 
+  lastLogin?: string | null; 
   profileCompleted?: boolean; 
 }
 
@@ -26,19 +26,19 @@ export interface Campaign {
   imageUrl?: string;
   requiredPoints?: number;
   applyLink?: string;
-  createdAt?: string; // Added for consistency if returned from DB
+  createdAt?: string; 
 }
 
 export interface CampaignApplication {
-  id?: string;
+  id: string; // Firestore document ID
   userId: string;
   campaignId: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedAt: string; // Changed from Date
+  appliedAt: string; 
   userName?: string;
   userEmail?: string;
   campaignName?: string;
-  appliedAtTimestamp?: string; // if you intend to pass this to client
+  appliedAtTimestamp?: string; 
 }
 
 export interface DailyChallenge {
@@ -54,7 +54,52 @@ export interface UserSolution {
   challengeId: string;
   userId: string;
   solution: string;
-  submittedAt: string; // Changed from Date
+  submittedAt: string; 
   pointsAwarded?: number;
-  submittedAtTimestamp?: string; // if you intend to pass this to client
+  submittedAtTimestamp?: string; 
+}
+
+// New types for campaign content
+export interface Course {
+  id: string; // Firestore document ID
+  campaignId: string;
+  title: string;
+  description: string;
+  videoUrl?: string;
+  resources?: Array<{ name: string; url: string }>;
+  createdAt: string; // ISO date string
+}
+
+export interface Project {
+  id: string; // Firestore document ID
+  campaignId: string;
+  title: string;
+  description: string;
+  submissionLinkRequired?: boolean;
+  learningObjectives?: string[];
+  createdAt: string; // ISO date string
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string; // Could be an index or the string itself
+}
+
+export interface CodingTestCase {
+  input: string;
+  expectedOutput: string;
+}
+
+export interface QuizChallenge {
+  id: string; // Firestore document ID
+  campaignId: string;
+  title: string;
+  description: string;
+  type: 'quiz' | 'coding_problem';
+  points: number;
+  questions?: QuizQuestion[]; // For type 'quiz'
+  codingPrompt?: string; // For type 'coding_problem'
+  testCases?: CodingTestCase[]; // For type 'coding_problem'
+  createdAt: string; // ISO date string
 }
