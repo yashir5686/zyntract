@@ -7,7 +7,7 @@
  * - DailyChallengeOutput - The return type (reusing existing DailyChallenge type from @/types).
  */
 
-import { ai } from '@/ai/genkit';
+import { ai } from '@/ai/genkit'; // Added import for the Genkit ai object
 import { z } from 'genkit';
 import type { DailyChallenge } from '@/types';
 
@@ -89,9 +89,9 @@ const fetchLeetCodeProblemFlow = ai.defineFlow(
       const suitableProblems = problemsArray.filter(p =>
         p.question_id &&
         p.question__title && p.question__title.trim() !== '' &&
-        p.question__content && p.question__content.trim() !== '' && // Ensure content is not just whitespace
+        p.question__content && p.question__content.trim() !== '' &&
         p.difficulty && typeof p.difficulty.level === 'number' &&
-        [1, 2, 3].includes(p.difficulty.level) // Ensure difficulty level is valid
+        [1, 2, 3].includes(p.difficulty.level)
       );
       console.log(`[fetchLeetCodeProblemFlow] Found ${suitableProblems.length} suitable problems after filtering.`);
 
@@ -104,7 +104,6 @@ const fetchLeetCodeProblemFlow = ai.defineFlow(
       const problem = suitableProblems[randomIndex];
       console.log(`[fetchLeetCodeProblemFlow] Randomly selected problem index: ${randomIndex}, ID: ${problem?.question_id}, Title: ${problem?.question__title}`);
 
-      // This final check ensures the selected problem is definitely usable.
       if (
         !problem ||
         !problem.question_id ||
@@ -125,7 +124,7 @@ const fetchLeetCodeProblemFlow = ai.defineFlow(
       const challengeResult: DailyChallenge = {
         id: problemId,
         title: problem.question__title,
-        description: problem.question__content, // Should be HTML
+        description: problem.question__content, 
         difficulty: difficulty,
         points: points,
         date: new Date().toISOString().split('T')[0],
@@ -139,3 +138,4 @@ const fetchLeetCodeProblemFlow = ai.defineFlow(
     }
   }
 );
+
