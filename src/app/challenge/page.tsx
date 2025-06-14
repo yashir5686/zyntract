@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTodaysDailyChallenge, getUserProfile, seedDailyChallenge } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/firestore'; 
+import { fetchDailyCodeforcesProblem } from '@/ai/flows/fetch-codeforces-problem-flow';
 import type { DailyChallenge, UserProfile } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
@@ -20,8 +22,7 @@ export default function DailyChallengePage() {
   useEffect(() => {
     const fetchChallenge = async () => {
       setIsLoadingChallenge(true);
-      // await seedDailyChallenge(); // Optional: Seed if no challenge today, remove for prod
-      const currentChallenge = await getTodaysDailyChallenge();
+      const currentChallenge = await fetchDailyCodeforcesProblem(); 
       setChallenge(currentChallenge);
       setIsLoadingChallenge(false);
     };
@@ -29,14 +30,12 @@ export default function DailyChallengePage() {
   }, []);
 
   useEffect(() => {
-    // Update local user profile state when auth context changes or after submission
     if (user) {
       setCurrentUserProfile(userProfile);
     }
   }, [user, userProfile]);
 
   const handleSolutionSuccess = async (pointsAwarded: number) => {
-    // Re-fetch user profile to update points and streak display
     if (user) {
       const updatedProfile = await getUserProfile(user.uid);
       setCurrentUserProfile(updatedProfile);
@@ -57,7 +56,7 @@ export default function DailyChallengePage() {
         <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">Access Denied</h1>
         <p className="text-lg text-muted-foreground mb-8">
           Please sign in to view and solve the daily challenge.
-        </p>
+        </p>        
         <Button asChild size="lg">
           <Link href="/">Go to Homepage</Link>
         </Button>
@@ -76,7 +75,7 @@ export default function DailyChallengePage() {
             <>
               <ChallengeDisplay challenge={challenge} />
               <SolutionForm
-                challengeId={challenge.id}
+                challengeId={challenge.id} 
                 userId={user.uid}
                 onSubmitSuccess={handleSolutionSuccess}
               />
@@ -85,7 +84,7 @@ export default function DailyChallengePage() {
             <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h2 className="font-headline text-2xl mb-2">No Challenge Today</h2>
-              <p className="text-muted-foreground">It seems there's no challenge available right now. Please check back later!</p>
+              <p className="text-muted-foreground">Could not fetch a challenge from Codeforces. Please try again later!</p>
             </div>
           )}
         </div>
@@ -110,12 +109,12 @@ export default function DailyChallengePage() {
               </div>
             )}
           </div>
-          {/* Could add a mini leaderboard or tips section here */}
           <div className="p-6 bg-card rounded-lg shadow-md">
              <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new challenge appears daily.</li>
-                <li>Submit your solution to earn points.</li>
+                <li>A new challenge from Codeforces appears daily.</li>
+                <li>Visit the Codeforces link in the challenge description to read the full problem.</li>
+                <li>Submit your solution approach or code snippet here to earn points.</li>
                 <li>Maintain your daily streak for bonus rewards (coming soon!).</li>
                 <li>Solutions are evaluated based on correctness and efficiency (simulated).</li>
              </ul>
