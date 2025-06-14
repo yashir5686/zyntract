@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/firebase/firestore'; 
 import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
-import type { DailyChallenge, UserProfile } from '@/types';
+import type { DailyChallenge, UserProfile, ChallengeExample } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
 import { Button } from '@/components/ui/button';
@@ -43,8 +43,6 @@ export default function DailyChallengePage() {
 
   const handleSolutionSuccess = async (pointsAwarded: number) => {
     if (user) {
-      // User stats (points, streak) are typically updated server-side by the real submission evaluation function.
-      // For this mock, we can refresh the profile to see if points changed.
       const updatedProfile = await getUserProfile(user.uid);
       setCurrentUserProfile(updatedProfile);
     }
@@ -85,6 +83,7 @@ export default function DailyChallengePage() {
               <SolutionForm
                 challengeId={challenge.id} 
                 userId={user.uid}
+                examples={challenge.examples}
                 onSubmitSuccess={handleSolutionSuccess}
               />
             </>
@@ -122,8 +121,9 @@ export default function DailyChallengePage() {
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
                 <li>A new programming challenge appears daily from a LeetCode-style dataset.</li>
                 <li>The full problem description, including examples, is displayed.</li>
-                <li>Use the embedded Paiza.IO editor to write and test your code.</li>
-                <li>The "Submit Final Solution" button is a placeholder for now. Ensure your solution is correct within the Paiza.IO environment.</li>
+                <li>Use the integrated code editor to write your solution. Select your preferred language.</li>
+                <li>Click "Run Tests (Mock)" to simulate checking your code against example cases. This is a mock and does not execute your code.</li>
+                <li>The "Submit Final Solution" button is a placeholder for now.</li>
              </ul>
           </div>
         </aside>
@@ -139,8 +139,10 @@ const ChallengePageSkeleton = () => (
       <ChallengeSkeleton />
       <div className="mt-8 space-y-4">
         <Skeleton className="h-10 w-1/3 mb-2" /> {/* Title Placeholder for editor area */}
-        <Skeleton className="h-[500px] w-full" /> {/* iframe Placeholder */}
+        <Skeleton className="h-10 w-1/4 mb-2" /> {/* Language Selector Placeholder */}
+        <Skeleton className="h-[500px] w-full" /> {/* Editor Placeholder */}
         <div className="flex gap-4">
+          <Skeleton className="h-10 w-36" /> {/* Run Tests Button Placeholder */}
           <Skeleton className="h-10 w-48" /> {/* Submit Button Placeholder */}
         </div>
       </div>
@@ -178,11 +180,9 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-5/6 mb-2" />
-    {/* More lines for problem description */}
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-2/3" />
-     {/* Placeholders for examples */}
     <Skeleton className="h-6 w-1/4 mt-4 mb-2" /> 
     <Skeleton className="h-12 w-full" />
     <Skeleton className="h-6 w-1/4 mt-4 mb-2" />
