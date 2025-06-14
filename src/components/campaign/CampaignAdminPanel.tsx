@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText, Loader2 } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText, Loader2, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
@@ -54,7 +54,7 @@ const getStatusBadge = (status: Campaign['status'] | CampaignApplication['status
   }
 };
 
-const ApplicationListItem = ({ application }: { application: CampaignApplication }) => {
+const ApprovedParticipantListItem = ({ application }: { application: CampaignApplication }) => {
     return (
         <Card className="bg-card-foreground/5">
             <CardContent className="p-4">
@@ -62,9 +62,11 @@ const ApplicationListItem = ({ application }: { application: CampaignApplication
                     <div>
                         <p className="font-semibold text-sm">{application.userName || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">{application.userEmail}</p>
-                        <p className="text-xs text-muted-foreground">Applied: {formatDate(application.appliedAt)}</p>
+                        <p className="text-xs text-muted-foreground">Approved on: {formatDate(application.appliedAt)}</p>
                     </div>
-                    {getStatusBadge(application.status)}
+                    {/* We know they are approved here, but badge might be useful for consistency if needed elsewhere */}
+                    {/* {getStatusBadge(application.status)} */} 
+                     <UserCheck className="w-5 h-5 text-green-500" />
                 </div>
             </CardContent>
         </Card>
@@ -98,6 +100,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     fetchApplications();
   }, [campaign.id]);
 
+  const approvedParticipants = applicationsList.filter(app => app.status === 'approved');
 
   const handleEditCampaign = () => alert(`Editing campaign: ${campaign.name} (Not implemented yet)`);
 
@@ -197,13 +200,13 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             <TabsContent value="participants">
                 <Card className="shadow-md">
                     <CardHeader>
-                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Participants & Applications</CardTitle>
-                        <CardDescription>View and manage applications for this campaign. Use the button below to approve, reject, or manually enroll users.</CardDescription>
+                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Campaign Participants</CardTitle>
+                        <CardDescription>View approved participants. Use the button below to manage all applications (approve, reject, manually enroll).</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
                             <DialogTrigger asChild>
-                                <Button className="w-full justify-start" variant="default"><Users2 className="w-4 h-4 mr-2"/> Manage Students & Applications Dialog</Button>
+                                <Button className="w-full justify-start" variant="default"><Users2 className="w-4 h-4 mr-2"/> Manage Student Applications & Enrollment</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                                 <ManageStudentsDialog campaignId={campaign.id} campaignName={campaign.name} setOpen={setIsManageStudentsOpen} />
@@ -212,18 +215,18 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                         
                         <Separator />
 
-                        <h4 className="font-semibold text-md text-muted-foreground">Submitted Applications ({applicationsList.length})</h4>
+                        <h4 className="font-semibold text-md text-muted-foreground">Approved Participants ({approvedParticipants.length})</h4>
                         {isLoadingApplications ? (
                             <div className="flex justify-center items-center py-10">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                             </div>
-                        ) : applicationsList.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-6">No applications submitted for this campaign yet.</p>
+                        ) : approvedParticipants.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">No participants approved for this campaign yet.</p>
                         ) : (
                             <ScrollArea className="h-[400px] pr-3">
                                 <div className="space-y-3">
-                                    {applicationsList.map(app => (
-                                        <ApplicationListItem key={app.id} application={app} />
+                                    {approvedParticipants.map(app => (
+                                        <ApprovedParticipantListItem key={app.id} application={app} />
                                     ))}
                                 </div>
                             </ScrollArea>
@@ -254,6 +257,3 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     </div>
   );
 }
-
-
-    
