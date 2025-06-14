@@ -1,20 +1,31 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCampaigns, seedCampaigns } from '@/lib/firebase/firestore';
-import type { Campaign } from '@/types';
+import type { Campaign, UserProfile } from '@/types';
 import CampaignCard from '@/components/dashboard/CampaignCard';
+import AddCampaignForm from '@/components/dashboard/AddCampaignForm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PlusCircle, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function DashboardPage() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
   const [appliedCampaignIds, setAppliedCampaignIds] = useState<Set<string>>(new Set());
+  const [isAddCampaignOpen, setIsAddCampaignOpen] = useState(false);
 
   const fetchCampaignData = async () => {
     setIsLoadingCampaigns(true);
@@ -30,8 +41,12 @@ export default function DashboardPage() {
 
   const handleApplicationSuccess = (campaignId: string) => {
     setAppliedCampaignIds(prev => new Set(prev).add(campaignId));
-    // Potentially re-fetch user applications or update UI to reflect "Applied" status
   };
+
+  const handleCampaignAdded = () => {
+    fetchCampaignData(); // Refresh the list of campaigns
+  };
+
 
   if (authLoading) {
     return (
@@ -70,15 +85,35 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div className="text-center sm:text-left">
           <h1 className="font-headline text-3xl md:text-4xl font-bold">Campaign Dashboard</h1>
           <p className="text-lg text-muted-foreground">Explore and join exciting tech campaigns.</p>
         </div>
-        <Button onClick={fetchCampaignData} variant="outline" className="mt-4 sm:mt-0">
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingCampaigns ? 'animate-spin' : ''}`} />
-          Refresh Campaigns
-        </Button>
+        <div className="flex gap-2 flex-wrap justify-center">
+          {isAdmin && (
+            <Dialog open={isAddCampaignOpen} onOpenChange={setIsAddCampaignOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Campaign
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-headline text-2xl">Create New Campaign</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details below to add a new campaign to the platform.
+                  </DialogDescription>
+                </DialogHeader>
+                <AddCampaignForm onCampaignAdded={handleCampaignAdded} setOpen={setIsAddCampaignOpen} />
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button onClick={fetchCampaignData} variant="outline">
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingCampaigns ? 'animate-spin' : ''}`} />
+            Refresh Campaigns
+          </Button>
+        </div>
       </div>
 
       {isLoadingCampaigns && !campaigns.length ? (
@@ -98,7 +133,7 @@ export default function DashboardPage() {
           {campaigns.length === 0 && !isLoadingCampaigns && (
             <div className="text-center py-10">
               <h2 className="font-headline text-2xl mb-2">No Campaigns Available</h2>
-              <p className="text-muted-foreground">Check back later for new opportunities, or try refreshing.</p>
+              <p className="text-muted-foreground">Check back later for new opportunities, or try refreshing. Admins can add new campaigns.</p>
             </div>
           )}
           {pastCampaigns.length > 0 && (
@@ -148,4 +183,3 @@ const CardSkeleton = () => (
     </div>
   </div>
 );
-

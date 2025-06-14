@@ -7,10 +7,8 @@ import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSo
 export const getCampaigns = async (): Promise<Campaign[]> => {
   try {
     const campaignsCol = collection(db, 'campaigns');
-    // Example: order by start date, initially fetch all non-past, then sort client-side if needed or add more specific queries
     const q = query(campaignsCol, orderBy('startDate', 'asc'));
     const campaignSnapshot = await getDocs(q);
-    // Filter out past campaigns if not needed everywhere, or handle status on client
     const campaignList = campaignSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Campaign));
     return campaignList;
   } catch (error) {
@@ -38,9 +36,25 @@ export const getCampaignById = async (campaignId: string): Promise<Campaign | nu
   }
 }
 
+export const addCampaign = async (campaignData: Omit<Campaign, 'id'>): Promise<string> => {
+  try {
+    const campaignsCol = collection(db, 'campaigns');
+    // Ensure dates are stored in a consistent format, e.g., ISO strings or Firestore Timestamps
+    // If campaignData.startDate and campaignData.endDate are Date objects, convert them.
+    // For simplicity, assuming they are already ISO strings as per the type, or will be handled by serverTimestamp if applicable.
+    const docRef = await addDoc(campaignsCol, {
+      ...campaignData,
+      createdAt: serverTimestamp(), // Optional: track creation time
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding new campaign: ", error);
+    throw error; // Re-throw to be handled by the caller
+  }
+};
+
 export const applyToCampaign = async (userId: string, campaignId: string, userName?: string, userEmail?: string, campaignName?: string): Promise<string | null> => {
   try {
-    // Check if user already applied
     const applicationsCol = collection(db, 'campaignApplications');
     const q = query(applicationsCol, where('userId', '==', userId), where('campaignId', '==', campaignId));
     const existingApplication = await getDocs(q);
@@ -81,7 +95,6 @@ export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> 
       const docData = challengeSnapshot.docs[0];
       return { id: docData.id, ...docData.data() } as DailyChallenge;
     }
-    // Fallback to the most recent challenge if today's is not found
     const fallbackQuery = query(challengesCol, orderBy('date', 'desc'), limit(1));
     const fallbackSnapshot = await getDocs(fallbackQuery);
     if (!fallbackSnapshot.empty) {
@@ -104,28 +117,24 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
       solution,
       submittedAt: new Date(),
     };
-    // Using a composite ID for submissions to ensure one submission per user per challenge
     const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`); 
     await setDoc(submissionRef, { ...userSolutionData, submittedAtTimestamp: serverTimestamp() });
 
-    // Update user points and streak (example: +10 points, +1 streak)
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
         const currentPoints = userSnap.data()?.points || 0;
         const currentStreak = userSnap.data()?.dailyChallengeStreak || 0;
-        // TODO: Add logic to check if it's a new day for the streak
         await updateDoc(userRef, {
             points: currentPoints + 10, 
-            dailyChallengeStreak: currentStreak + 1, // Basic increment, needs daily logic
+            dailyChallengeStreak: currentStreak + 1,
         });
     }
     
-    // Return the submission details along with points awarded (could be determined by a backend function)
-    return { ...userSolutionData, pointsAwarded: 10 }; // Example points
+    return { ...userSolutionData, pointsAwarded: 10 };
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
-    throw error; // Rethrow to be handled by the caller
+    throw error; 
   }
 };
 
@@ -147,7 +156,6 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 export const getUserProfileByUsername = async (username: string): Promise<UserProfile | null> => {
   try {
     const usersRef = collection(db, 'users');
-    // Usernames are stored in lowercase, so query with lowercase
     const q = query(usersRef, where('username', '==', username.toLowerCase()), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -177,8 +185,6 @@ export const updateUserProfile = async (userId: string, data: Partial<UserProfil
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       ...data,
-      // profileCompleted is typically set when essential fields like username/displayName are filled.
-      // It might be explicitly set to true in the calling function (e.g., CompleteProfileForm).
     });
   } catch (error) {
     console.error("Error updating user profile: ", error);
@@ -198,8 +204,6 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
   }
 };
 
-
-// Helper to create some dummy campaigns if the collection is empty
 export const seedCampaigns = async () => {
   const campaignsCol = collection(db, 'campaigns');
   const snapshot = await getDocs(query(campaignsCol, limit(1)));
@@ -234,13 +238,12 @@ export const seedCampaigns = async () => {
       },
     ];
     for (const camp of dummyCampaigns) {
-      await addDoc(campaignsCol, camp);
+      await addDoc(campaignsCol, { ...camp, createdAt: serverTimestamp() });
     }
     console.log('Dummy campaigns seeded.');
   }
 };
 
-// Helper to create a dummy daily challenge if none exists for today
 export const seedDailyChallenge = async () => {
   const todayStr = new Date().toISOString().split('T')[0];
   const challengesCol = collection(db, 'dailyChallenges');
@@ -259,4 +262,3 @@ export const seedDailyChallenge = async () => {
     console.log('Dummy daily challenge for today seeded.');
   }
 };
-
