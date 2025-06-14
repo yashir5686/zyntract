@@ -1,20 +1,18 @@
 
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { Send } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface SolutionFormProps {
   challengeId: string;
   userId: string;
-  // examples prop is removed as it's no longer used for client-side testing
+  // examples prop removed as it's no longer used for client-side testing
   onSubmitSuccess: (pointsAwarded: number) => void;
 }
 
-// Simplified mock submission as code is not directly accessible from iframe
+// Mock submission function remains as we can't get code from iframe
 async function mockSubmitSolution(userId: string, challengeId: string): Promise<{ pointsAwarded: number }> {
   console.log('Mock submission for user', userId, 'challenge', challengeId, '. Code from iframe is not directly processed here.');
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -23,22 +21,18 @@ async function mockSubmitSolution(userId: string, challengeId: string): Promise<
 }
 
 export default function SolutionForm({ challengeId, userId, onSubmitSuccess }: SolutionFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  // State related to Paiza API calls, code input, language selection, test results
+  // have been removed as they are no longer applicable with the iframe embed.
 
   const handleSubmitSolution = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      // The code and language are within the iframe, not directly accessible here.
-      const result = await mockSubmitSolution(userId, challengeId);
-      toast({ title: 'Solution Submitted (Mock)!', description: `Mock evaluation acknowledged. Points: ${result.pointsAwarded}. Note: Code from iframe is not evaluated by this button.` });
-      onSubmitSuccess(result.pointsAwarded);
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || 'Could not submit solution.' });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // This function is effectively a mock now.
+    // Consider removing or significantly altering if iframe is permanent.
+    // For now, it will just simulate a submission acknowledgment.
+    // const result = await mockSubmitSolution(userId, challengeId);
+    // toast({ title: 'Solution Acknowledged (Mock)!', description: `Mock system noted an attempt. Points: ${result.pointsAwarded}. Code from iframe is not evaluated by this button.` });
+    // onSubmitSuccess(result.pointsAwarded);
+    console.log("Submit button clicked, but code/output from iframe is not accessible.");
   };
 
   return (
@@ -55,7 +49,7 @@ export default function SolutionForm({ challengeId, userId, onSubmitSuccess }: S
               width="100%" 
               height="500" 
               scrolling="no" 
-              seamless={true} // React uses 'seamless' not 'seamless="seamless"'
+              seamless={true}
               style={{ border: 'none' }}
               title="Paiza.IO Embedded Editor"
             ></iframe>
