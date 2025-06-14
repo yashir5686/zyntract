@@ -161,7 +161,7 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground text-sm">
             <span className="flex items-center"><CalendarDays className="w-4 h-4 mr-2" /> {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}</span>
             {campaign.requiredPoints && campaign.requiredPoints > 0 && (
-              <span className="flex items-center"><Zap className="w-4 h-4 mr-2 text-accent" /> {campaign.requiredPoints} points to apply</span>
+              <span className="flex items-center"><Zap className="w-4 h-4 mr-2 text-accent" /> {campaign.requiredPoints} points for reference</span>
             )}
             {campaign.applyLink && (
                 <span className="flex items-center text-xs text-accent/80">
@@ -273,3 +273,5 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
   );
 }
 
+
+    

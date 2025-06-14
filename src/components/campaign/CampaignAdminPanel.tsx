@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText, Loader2, UserCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
 import ManageStudentsDialog from './dialogs/ManageStudentsDialog';
 import ManageProjectsDialog from './dialogs/ManageProjectsDialog';
@@ -64,8 +64,6 @@ const ApprovedParticipantListItem = ({ application }: { application: CampaignApp
                         <p className="text-xs text-muted-foreground">{application.userEmail}</p>
                         <p className="text-xs text-muted-foreground">Approved on: {formatDate(application.appliedAt)}</p>
                     </div>
-                    {/* We know they are approved here, but badge might be useful for consistency if needed elsewhere */}
-                    {/* {getStatusBadge(application.status)} */} 
                      <UserCheck className="w-5 h-5 text-green-500" />
                 </div>
             </CardContent>
@@ -83,22 +81,23 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
   const [applicationsList, setApplicationsList] = useState<CampaignApplication[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
 
-  useEffect(() => {
-    const fetchApplications = async () => {
-      if (!campaign.id) return;
-      setIsLoadingApplications(true);
-      try {
-        const apps = await getCampaignApplicationsForCampaign(campaign.id);
-        setApplicationsList(apps);
-      } catch (error) {
-        console.error("Failed to fetch applications for admin panel:", error);
-        setApplicationsList([]); // Set to empty on error
-      } finally {
-        setIsLoadingApplications(false);
-      }
-    };
-    fetchApplications();
+  const fetchApplicationsList = useCallback(async () => {
+    if (!campaign.id) return;
+    setIsLoadingApplications(true);
+    try {
+      const apps = await getCampaignApplicationsForCampaign(campaign.id);
+      setApplicationsList(apps);
+    } catch (error) {
+      console.error("Failed to fetch applications for admin panel:", error);
+      setApplicationsList([]); 
+    } finally {
+      setIsLoadingApplications(false);
+    }
   }, [campaign.id]);
+
+  useEffect(() => {
+    fetchApplicationsList();
+  }, [fetchApplicationsList]);
 
   const approvedParticipants = applicationsList.filter(app => app.status === 'approved');
 
@@ -137,7 +136,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground text-sm mt-2">
             <span className="flex items-center"><CalendarDays className="w-4 h-4 mr-2" /> {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}</span>
             {campaign.requiredPoints && campaign.requiredPoints > 0 && (
-              <span className="flex items-center"><Zap className="w-4 h-4 mr-2 text-accent" /> {campaign.requiredPoints} points to apply</span>
+              <span className="flex items-center"><Zap className="w-4 h-4 mr-2 text-accent" /> {campaign.requiredPoints} points for reference</span>
             )}
             {campaign.applyLink && (
                 <span className="flex items-center text-xs text-accent/80">
@@ -200,28 +199,33 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             <TabsContent value="participants">
                 <Card className="shadow-md">
                     <CardHeader>
-                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Campaign Participants</CardTitle>
-                        <CardDescription>View approved participants. Use the button below to manage all applications (approve, reject, manually enroll).</CardDescription>
+                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Enrolled Participants</CardTitle>
+                        <CardDescription>View enrolled participants. Use the button below to manage all applications and enroll new students.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
                             <DialogTrigger asChild>
-                                <Button className="w-full justify-start" variant="default"><Users2 className="w-4 h-4 mr-2"/> Manage Student Applications & Enrollment</Button>
+                                <Button className="w-full justify-start" variant="default"><Users2 className="w-4 h-4 mr-2"/> Manage Student Enrollment</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-                                <ManageStudentsDialog campaignId={campaign.id} campaignName={campaign.name} setOpen={setIsManageStudentsOpen} />
+                                <ManageStudentsDialog 
+                                  campaignId={campaign.id} 
+                                  campaignName={campaign.name} 
+                                  setOpen={setIsManageStudentsOpen} 
+                                  onApplicationsUpdate={fetchApplicationsList} 
+                                />
                             </DialogContent>
                         </Dialog>
                         
                         <Separator />
 
-                        <h4 className="font-semibold text-md text-muted-foreground">Approved Participants ({approvedParticipants.length})</h4>
+                        <h4 className="font-semibold text-md text-muted-foreground">Approved & Enrolled Participants ({approvedParticipants.length})</h4>
                         {isLoadingApplications ? (
                             <div className="flex justify-center items-center py-10">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                             </div>
                         ) : approvedParticipants.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-6">No participants approved for this campaign yet.</p>
+                            <p className="text-sm text-muted-foreground text-center py-6">No participants enrolled in this campaign yet.</p>
                         ) : (
                             <ScrollArea className="h-[400px] pr-3">
                                 <div className="space-y-3">
@@ -257,3 +261,6 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     </div>
   );
 }
+
+
+    

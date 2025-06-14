@@ -22,6 +22,7 @@ interface ManageStudentsDialogProps {
   campaignId: string;
   campaignName: string;
   setOpen: (open: boolean) => void;
+  onApplicationsUpdate: () => void; // Callback to refresh the list in the parent
 }
 
 const enrollUserSchema = z.object({
@@ -29,7 +30,7 @@ const enrollUserSchema = z.object({
 });
 type EnrollUserFormValues = z.infer<typeof enrollUserSchema>;
 
-export default function ManageStudentsDialog({ campaignId, campaignName, setOpen }: ManageStudentsDialogProps) {
+export default function ManageStudentsDialog({ campaignId, campaignName, setOpen, onApplicationsUpdate }: ManageStudentsDialogProps) {
   const [applications, setApplications] = useState<CampaignApplication[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingApps, setIsFetchingApps] = useState(true);
@@ -61,7 +62,8 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
     try {
       await updateCampaignApplicationStatus(applicationId, status);
       toast({ title: 'Status Updated', description: `Application status changed to ${status}.` });
-      fetchApplications(); // Refresh list
+      fetchApplications(); // Refresh list in dialog
+      onApplicationsUpdate(); // Refresh list in parent
     } catch (error) {
       toast({ variant: 'destructive', title: 'Failed to Update Status', description: (error as Error).message });
     } finally {
@@ -75,7 +77,8 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
       await enrollUserInCampaignByEmail(campaignId, data.email, campaignName);
       toast({ title: 'User Enrolled!', description: `${data.email} has been enrolled and their application marked as approved.` });
       enrollForm.reset();
-      fetchApplications(); // Refresh list
+      fetchApplications(); // Refresh list in dialog
+      onApplicationsUpdate(); // Refresh list in parent
     } catch (error) {
       toast({ variant: 'destructive', title: 'Enrollment Failed', description: (error as Error).message });
     } finally {
@@ -100,9 +103,9 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
     <>
       <DialogHeader>
         <DialogTitle className="font-headline text-2xl flex items-center">
-          <Users2 className="w-6 h-6 mr-2 text-primary" /> Manage Students & Applications
+          <Users2 className="w-6 h-6 mr-2 text-primary" /> Manage Student Enrollment
         </DialogTitle>
-        <DialogDescription>Review applications, approve/reject, and manually enroll users for "{campaignName}".</DialogDescription>
+        <DialogDescription>Enroll users, and review/manage applications for "{campaignName}".</DialogDescription>
       </DialogHeader>
 
       <div className="py-4 max-h-[70vh] flex flex-col">
@@ -132,14 +135,14 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
         <Separator className="my-4" />
         
         <section className="flex-grow overflow-hidden flex flex-col">
-            <h3 className="font-headline text-lg mb-3">Applications ({applications.length})</h3>
-            <ScrollArea className="flex-grow pr-3"> {/* Use ScrollArea for the list */}
+            <h3 className="font-headline text-lg mb-3">All Applications & Enrolled Students ({applications.length})</h3>
+            <ScrollArea className="flex-grow pr-3">
                 {isFetchingApps ? (
                     <div className="flex justify-center items-center h-32">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ) : applications.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No applications submitted for this campaign yet.</p>
+                    <p className="text-muted-foreground text-sm">No applications or enrollments for this campaign yet.</p>
                 ) : (
                     <div className="space-y-3">
                         {applications.map(app => (
@@ -148,7 +151,7 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
                                     <div>
                                         <p className="font-semibold">{app.userName || 'N/A'}</p>
                                         <p className="text-xs text-muted-foreground">{app.userEmail}</p>
-                                        <p className="text-xs text-muted-foreground">Applied: {new Date(app.appliedAt).toLocaleDateString()}</p>
+                                        <p className="text-xs text-muted-foreground">Applied/Enrolled: {new Date(app.appliedAt).toLocaleDateString()}</p>
                                     </div>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                         {getStatusBadge(app.status)}
@@ -185,3 +188,6 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
     </>
   );
 }
+
+
+    
