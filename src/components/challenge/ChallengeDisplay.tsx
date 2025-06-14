@@ -1,7 +1,8 @@
+
 import type { DailyChallenge } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Zap, CalendarDays, Brain } from 'lucide-react';
+import { Zap, CalendarDays } from 'lucide-react';
 
 interface ChallengeDisplayProps {
   challenge: DailyChallenge;
@@ -29,9 +30,10 @@ export default function ChallengeDisplay({ challenge }: ChallengeDisplayProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="prose prose-invert max-w-none text-foreground">
-            <p className="whitespace-pre-wrap leading-relaxed">{challenge.description}</p>
-        </div>
+        <div 
+          className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-foreground leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: challenge.description }}
+        />
       </CardContent>
     </Card>
   );

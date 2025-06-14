@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/firebase/firestore'; 
-import { fetchDailyCodeforcesProblem } from '@/ai/flows/fetch-codeforces-problem-flow';
+import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
 import type { DailyChallenge, UserProfile } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
@@ -22,7 +22,7 @@ export default function DailyChallengePage() {
   useEffect(() => {
     const fetchChallenge = async () => {
       setIsLoadingChallenge(true);
-      const currentChallenge = await fetchDailyCodeforcesProblem(); 
+      const currentChallenge = await fetchDailyProgrammingProblem(); 
       setChallenge(currentChallenge);
       setIsLoadingChallenge(false);
     };
@@ -37,6 +37,8 @@ export default function DailyChallengePage() {
 
   const handleSolutionSuccess = async (pointsAwarded: number) => {
     if (user) {
+      // Re-fetch user profile to update stats immediately
+      // Alternatively, update local state optimistically then sync
       const updatedProfile = await getUserProfile(user.uid);
       setCurrentUserProfile(updatedProfile);
     }
@@ -84,7 +86,7 @@ export default function DailyChallengePage() {
             <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h2 className="font-headline text-2xl mb-2">No Challenge Today</h2>
-              <p className="text-muted-foreground">Could not fetch a challenge from Codeforces. Please try again later!</p>
+              <p className="text-muted-foreground">Could not fetch a programming challenge. Please try again later!</p>
             </div>
           )}
         </div>
@@ -112,8 +114,8 @@ export default function DailyChallengePage() {
           <div className="p-6 bg-card rounded-lg shadow-md">
              <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new challenge from Codeforces appears daily.</li>
-                <li>Visit the Codeforces link in the challenge description to read the full problem.</li>
+                <li>A new programming challenge appears daily.</li>
+                <li>The full problem description is displayed below.</li>
                 <li>Submit your solution approach or code snippet here to earn points.</li>
                 <li>Maintain your daily streak for bonus rewards (coming soon!).</li>
                 <li>Solutions are evaluated based on correctness and efficiency (simulated).</li>
