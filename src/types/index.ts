@@ -11,8 +11,8 @@ export interface UserProfile {
   dailyChallengeStreak?: number;
   points?: number;
   isAdmin?: boolean;
-  createdAt?: string | null; 
-  lastLogin?: string | null; 
+  createdAt?: string | null; // ISO date string from Firestore Timestamp
+  lastLogin?: string | null; // ISO date string from Firestore Timestamp
   profileCompleted?: boolean; 
 }
 
@@ -26,7 +26,7 @@ export interface Campaign {
   imageUrl?: string;
   requiredPoints?: number;
   applyLink?: string;
-  createdAt?: string; 
+  createdAt?: string; // ISO date string from Firestore Timestamp
 }
 
 export interface CampaignApplication {
@@ -34,11 +34,10 @@ export interface CampaignApplication {
   userId: string;
   campaignId: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedAt: string; 
+  appliedAt: string; // ISO date string from Firestore Timestamp
   userName?: string;
   userEmail?: string;
   campaignName?: string;
-  appliedAtTimestamp?: string; 
 }
 
 export interface DailyChallenge {
@@ -54,9 +53,8 @@ export interface UserSolution {
   challengeId: string;
   userId: string;
   solution: string;
-  submittedAt: string; 
+  submittedAt: string; // ISO date string from Firestore Timestamp
   pointsAwarded?: number;
-  submittedAtTimestamp?: string; 
 }
 
 // New types for campaign content
@@ -67,7 +65,7 @@ export interface Course {
   description: string;
   courseUrl: string; 
   resources?: Array<{ name: string; url: string }>;
-  createdAt: string; // ISO date string
+  createdAt: string; // ISO date string from Firestore Timestamp
 }
 
 export interface Project {
@@ -77,7 +75,7 @@ export interface Project {
   description: string;
   submissionLinkRequired?: boolean;
   learningObjectives?: string[];
-  createdAt: string; // ISO date string
+  createdAt: string; // ISO date string from Firestore Timestamp
 }
 
 export interface QuizQuestion {
@@ -101,7 +99,7 @@ export interface QuizChallenge {
   questions?: QuizQuestion[]; // For type 'quiz'
   codingPrompt?: string; // For type 'coding_problem'
   testCases?: CodingTestCase[]; // For type 'coding_problem'
-  createdAt: string; // ISO date string
+  createdAt: string; // ISO date string from Firestore Timestamp
 }
 
 export interface UserCourseCertificate {
@@ -109,14 +107,12 @@ export interface UserCourseCertificate {
   userId: string;
   campaignId: string;
   courseId: string;
-  userName?: string; // Added
-  userEmail?: string; // Added
+  userName?: string; 
+  userEmail?: string; 
   certificateUrl: string;
   status: 'review' | 'approved' | 'rejected';
-  submittedAt: string; // ISO date string, effectively from submittedAtTimestamp
-  submittedAtTimestamp?: any; // Firestore ServerTimestamp on create/update
-  reviewedAt?: string | null; // ISO date string, from reviewedAtTimestamp
-  reviewedAtTimestamp?: any | null; // Firestore ServerTimestamp on review
+  submittedAt: string; // ISO date string from Firestore Timestamp
+  reviewedAt?: string | null; // ISO date string from Firestore Timestamp
   adminNotes?: string | null;
 }
 

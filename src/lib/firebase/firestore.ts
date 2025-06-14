@@ -9,7 +9,7 @@ const serializeFirestoreData = (data: Record<string, any>): Record<string, any> 
   for (const key in data) {
     if (data[key] instanceof Timestamp) {
       serializedData[key] = (data[key] as Timestamp).toDate().toISOString();
-    } else if (data[key] instanceof Date) {
+    } else if (data[key] instanceof Date) { // Should not happen often with Firestore, but good to have
       serializedData[key] = data[key].toISOString();
     }
      else {
@@ -23,7 +23,8 @@ const serializeFirestoreData = (data: Record<string, any>): Record<string, any> 
 export const getCampaigns = async (): Promise<Campaign[]> => {
   try {
     const campaignsCol = collection(db, 'campaigns');
-    const q = query(campaignsCol, orderBy('startDate', 'asc'));
+    // Assuming startDate is a string, if it's a Timestamp, it should be 'startDate'
+    const q = query(campaignsCol, orderBy('startDate', 'asc')); 
     const campaignSnapshot = await getDocs(q);
     const campaignList = campaignSnapshot.docs.map(doc => {
       const data = doc.data();
@@ -61,7 +62,7 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt
     const campaignsCol = collection(db, 'campaigns');
     const dataToAdd: any = {
       ...campaignData,
-      createdAt: serverTimestamp(),
+      createdAt: serverTimestamp(), // Field name is 'createdAt'
     };
     if (!campaignData.applyLink) {
       delete dataToAdd.applyLink;
@@ -91,7 +92,7 @@ export const getCampaignApplicationForUser = async (userId: string, campaignId: 
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string,
+        appliedAt: serialized.appliedAt as string, // Expect 'appliedAt' from serialization
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -108,7 +109,7 @@ export const getCampaignApplicationForUser = async (userId: string, campaignId: 
 export const getCampaignApplicationsByUserId = async (userId: string): Promise<CampaignApplication[]> => {
   try {
     const applicationsCol = collection(db, 'campaignApplications');
-    const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAtTimestamp', 'desc'));
+    const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAt', 'desc')); // Order by 'appliedAt'
     const appSnapshot = await getDocs(q);
     return appSnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
@@ -118,7 +119,7 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string,
+        appliedAt: serialized.appliedAt as string, // Expect 'appliedAt'
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -133,7 +134,7 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
 export const getCampaignApplicationsForCampaign = async (campaignId: string): Promise<CampaignApplication[]> => {
   try {
     const applicationsCol = collection(db, 'campaignApplications');
-    const q = query(applicationsCol, where('campaignId', '==', campaignId), orderBy('appliedAtTimestamp', 'desc'));
+    const q = query(applicationsCol, where('campaignId', '==', campaignId), orderBy('appliedAt', 'desc')); // Order by 'appliedAt'
     const appSnapshot = await getDocs(q);
     return appSnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
@@ -143,7 +144,7 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
-        appliedAt: serialized.appliedAtTimestamp as string,
+        appliedAt: serialized.appliedAt as string, // Expect 'appliedAt'
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
@@ -187,14 +188,14 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
        return existingAppId;
     }
 
-    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAtTimestamp: any } = {
+    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAt: any } = { // Use 'appliedAt'
       userId,
       campaignId,
       status: 'approved',
       userName: userData.displayName || userData.username || 'Anonymous',
       userEmail: userData.email || 'N/A',
       campaignName: campaignName || 'N/A',
-      appliedAtTimestamp: serverTimestamp() // Use serverTimestamp here
+      appliedAt: serverTimestamp() // Use serverTimestamp here for 'appliedAt'
     };
     const docRef = await addDoc(applicationsCol, applicationData);
     return docRef.id;
@@ -233,11 +234,11 @@ export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> 
 
 export const submitChallengeSolution = async (userId: string, challengeId: string, solution: string): Promise<UserSolution | null> => {
   try {
-    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt' | 'submittedAtTimestamp'> & { submittedAtTimestamp: any } = {
+    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt'> & { submittedAt: any } = { // Use 'submittedAt'
       userId,
       challengeId,
       solution,
-      submittedAtTimestamp: serverTimestamp(),
+      submittedAt: serverTimestamp(), // Use 'submittedAt'
     };
     const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`);
     await setDoc(submissionRef, userSolutionData );
@@ -260,7 +261,7 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         userId: serializedReturn.userId,
         challengeId: serializedReturn.challengeId,
         solution: serializedReturn.solution,
-        submittedAt: serializedReturn.submittedAtTimestamp as string,
+        submittedAt: serializedReturn.submittedAt as string, // Expect 'submittedAt'
         pointsAwarded: 10
     } as UserSolution;
   } catch (error) {
@@ -288,8 +289,8 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
         points: serialized.points,
         isAdmin: serialized.isAdmin,
         profileCompleted: serialized.profileCompleted,
-        createdAt: serialized.createdAtTimestamp ? serialized.createdAtTimestamp as string : (serialized.createdAt as string | null),
-        lastLogin: serialized.lastLoginTimestamp ? serialized.lastLoginTimestamp as string : (serialized.lastLogin as string | null),
+        createdAt: serialized.createdAt as string | null, // Expect 'createdAt'
+        lastLogin: serialized.lastLogin as string | null, // Expect 'lastLogin'
       } as UserProfile;
     }
     return null;
@@ -318,8 +319,8 @@ export const getUserProfileByUsername = async (username: string): Promise<UserPr
         points: serialized.points,
         isAdmin: serialized.isAdmin,
         profileCompleted: serialized.profileCompleted,
-        createdAt: serialized.createdAtTimestamp ? serialized.createdAtTimestamp as string : (serialized.createdAt as string | null),
-        lastLogin: serialized.lastLoginTimestamp ? serialized.lastLoginTimestamp as string : (serialized.lastLogin as string | null),
+        createdAt: serialized.createdAt as string | null, // Expect 'createdAt'
+        lastLogin: serialized.lastLogin as string | null, // Expect 'lastLogin'
       } as UserProfile;
     }
     return null;
@@ -337,14 +338,22 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
     return !querySnapshot.empty;
   } catch (error) {
     console.error("Error checking username: ", error);
-    return true;
+    return true; // Fail safe
   }
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, data);
+    // Ensure server timestamps are used correctly if updating createdAt/lastLogin directly
+    const dataToUpdate = { ...data };
+    if (data.createdAt === 'SERVER_TIMESTAMP_PLACEHOLDER') { // Example placeholder
+        dataToUpdate.createdAt = serverTimestamp() as any;
+    }
+    if (data.lastLogin === 'SERVER_TIMESTAMP_PLACEHOLDER') {
+        dataToUpdate.lastLogin = serverTimestamp() as any;
+    }
+    await updateDoc(userRef, dataToUpdate);
   } catch (error) {
     console.error("Error updating user profile: ", error);
     throw error;
@@ -361,7 +370,7 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
     const newCourseDataWithTimestamp = {
       ...courseData,
       campaignId,
-      createdAtTimestamp: serverTimestamp(),
+      createdAt: serverTimestamp(), // Field name is 'createdAt'
     };
     const docRef = await addDoc(coursesColRef, newCourseDataWithTimestamp);
 
@@ -377,7 +386,7 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
         description: serialized.description,
         courseUrl: serialized.courseUrl,
         resources: serialized.resources,
-        createdAt: serialized.createdAtTimestamp as string,
+        createdAt: serialized.createdAt as string, // Expect 'createdAt'
      } as Course;
   } catch (error) {
     console.error('Error adding course:', error);
@@ -392,13 +401,11 @@ export const getCoursesForCampaign = async (campaignId: string): Promise<Course[
   }
   try {
     const coursesColRef = collection(db, 'campaigns', campaignId, 'courses');
-    // The orderBy clause requires the 'createdAtTimestamp' field to exist on documents.
-    // If courses are not showing, verify this field exists and is a Firestore Timestamp on your course documents.
-    const q = query(coursesColRef, orderBy('createdAtTimestamp', 'asc'));
+    const q = query(coursesColRef, orderBy('createdAt', 'asc')); // Order by 'createdAt'
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
-      console.log(`No courses found for campaignId: ${campaignId}. This could be because no courses exist, or they are missing the 'createdAtTimestamp' field required by the query's orderBy clause. Please check your Firestore data.`);
+      console.log(`No courses found for campaignId: ${campaignId}. This could be because no courses exist, or they are missing the 'createdAt' field (of Timestamp type) required by the query's orderBy clause. Please check your Firestore data.`);
     } else {
       // console.log(`Fetched ${snapshot.docs.length} courses for campaignId: ${campaignId}`);
     }
@@ -408,10 +415,10 @@ export const getCoursesForCampaign = async (campaignId: string): Promise<Course[
         const serialized = serializeFirestoreData(rawData);
 
         let createdAtIsoString: string;
-        if (serialized.createdAtTimestamp && typeof serialized.createdAtTimestamp === 'string') {
-            createdAtIsoString = serialized.createdAtTimestamp;
+        if (serialized.createdAt && typeof serialized.createdAt === 'string') { // Expect 'createdAt'
+            createdAtIsoString = serialized.createdAt;
         } else {
-            console.warn(`Course ${docSnap.id} for campaign ${campaignId} is missing or has an invalid 'createdAtTimestamp'. Using current date as fallback for 'createdAt'. Original rawData.createdAtTimestamp:`, rawData.createdAtTimestamp);
+            console.warn(`Course ${docSnap.id} for campaign ${campaignId} is missing or has an invalid 'createdAt' field. Using current date as fallback. Original rawData.createdAt:`, rawData.createdAt);
             createdAtIsoString = new Date().toISOString(); 
         }
 
@@ -438,7 +445,7 @@ export const addProjectToCampaign = async (campaignId: string, projectData: Omit
     const newProjectDataWithTimestamp = {
         ...projectData,
         campaignId,
-        createdAtTimestamp: serverTimestamp(),
+        createdAt: serverTimestamp(), // Field name is 'createdAt'
     };
     const docRef = await addDoc(projectsColRef, newProjectDataWithTimestamp);
     const newDocSnap = await getDoc(docRef);
@@ -452,7 +459,7 @@ export const addProjectToCampaign = async (campaignId: string, projectData: Omit
         description: serialized.description,
         submissionLinkRequired: serialized.submissionLinkRequired,
         learningObjectives: serialized.learningObjectives,
-        createdAt: serialized.createdAtTimestamp as string,
+        createdAt: serialized.createdAt as string, // Expect 'createdAt'
     } as Project;
   } catch (error) {
     console.error('Error adding project:', error);
@@ -463,7 +470,7 @@ export const addProjectToCampaign = async (campaignId: string, projectData: Omit
 export const getProjectsForCampaign = async (campaignId: string): Promise<Project[]> => {
    try {
     const projectsColRef = collection(db, 'campaigns', campaignId, 'projects');
-    const q = query(projectsColRef, orderBy('createdAtTimestamp', 'asc'));
+    const q = query(projectsColRef, orderBy('createdAt', 'asc')); // Order by 'createdAt'
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => {
         const rawData = docSnap.data();
@@ -475,7 +482,7 @@ export const getProjectsForCampaign = async (campaignId: string): Promise<Projec
             description: serialized.description,
             submissionLinkRequired: serialized.submissionLinkRequired,
             learningObjectives: serialized.learningObjectives,
-            createdAt: serialized.createdAtTimestamp as string,
+            createdAt: serialized.createdAt as string, // Expect 'createdAt'
         } as Project;
     });
   } catch (error)
@@ -492,7 +499,7 @@ export const addQuizChallengeToCampaign = async (campaignId: string, quizData: O
     const newQuizDataWithTimestamp = {
         ...quizData,
         campaignId,
-        createdAtTimestamp: serverTimestamp(),
+        createdAt: serverTimestamp(), // Field name is 'createdAt'
     };
     const docRef = await addDoc(quizzesColRef, newQuizDataWithTimestamp);
     const newDocSnap = await getDoc(docRef);
@@ -509,7 +516,7 @@ export const addQuizChallengeToCampaign = async (campaignId: string, quizData: O
         questions: serialized.questions,
         codingPrompt: serialized.codingPrompt,
         testCases: serialized.testCases,
-        createdAt: serialized.createdAtTimestamp as string,
+        createdAt: serialized.createdAt as string, // Expect 'createdAt'
     } as QuizChallenge;
   } catch (error) {
     console.error('Error adding quiz/challenge:', error);
@@ -520,7 +527,7 @@ export const addQuizChallengeToCampaign = async (campaignId: string, quizData: O
 export const getQuizChallengesForCampaign = async (campaignId: string): Promise<QuizChallenge[]> => {
   try {
     const quizzesColRef = collection(db, 'campaigns', campaignId, 'quizzes');
-    const q = query(quizzesColRef, orderBy('createdAtTimestamp', 'asc'));
+    const q = query(quizzesColRef, orderBy('createdAt', 'asc')); // Order by 'createdAt'
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => {
         const rawData = docSnap.data();
@@ -535,7 +542,7 @@ export const getQuizChallengesForCampaign = async (campaignId: string): Promise<
             questions: serialized.questions,
             codingPrompt: serialized.codingPrompt,
             testCases: serialized.testCases,
-            createdAt: serialized.createdAtTimestamp as string,
+            createdAt: serialized.createdAt as string, // Expect 'createdAt'
         } as QuizChallenge;
     });
   } catch (error) {
@@ -566,7 +573,7 @@ export const submitOrUpdateCourseCertificate = async (
     );
     const snapshot = await getDocs(q);
 
-    const dataToUpsert = {
+    const dataToUpsert: any = { // Use 'any' temporarily for serverTimestamp fields
       userId,
       campaignId,
       courseId,
@@ -574,8 +581,8 @@ export const submitOrUpdateCourseCertificate = async (
       userEmail: userProfile.email || 'N/A',
       certificateUrl,
       status: 'review',
-      submittedAtTimestamp: serverTimestamp(),
-      reviewedAtTimestamp: null,
+      submittedAt: serverTimestamp(), // Field name is 'submittedAt'
+      reviewedAt: null, // Field name is 'reviewedAt'
       adminNotes: null,
     };
 
@@ -597,8 +604,8 @@ export const submitOrUpdateCourseCertificate = async (
         userName: dataToUpsert.userName,
         userEmail: dataToUpsert.userEmail,
         status: 'review',
-        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp,
-        reviewedAtTimestamp: null,
+        submittedAt: dataToUpsert.submittedAt, // Field name is 'submittedAt'
+        reviewedAt: null, // Field name is 'reviewedAt'
         adminNotes: null,
       });
     }
@@ -619,8 +626,8 @@ export const submitOrUpdateCourseCertificate = async (
         userEmail: serializedFinal.userEmail,
         certificateUrl: serializedFinal.certificateUrl,
         status: serializedFinal.status,
-        submittedAt: serializedFinal.submittedAtTimestamp as string,
-        reviewedAt: serializedFinal.reviewedAtTimestamp ? serializedFinal.reviewedAtTimestamp as string : null,
+        submittedAt: serializedFinal.submittedAt as string, // Expect 'submittedAt'
+        reviewedAt: serializedFinal.reviewedAt ? serializedFinal.reviewedAt as string : null, // Expect 'reviewedAt'
         adminNotes: serializedFinal.adminNotes || null,
      } as UserCourseCertificate;
 
@@ -657,8 +664,8 @@ export const getUserCourseCertificateForCourse = async (
         userEmail: serialized.userEmail,
         certificateUrl: serialized.certificateUrl,
         status: serialized.status,
-        submittedAt: serialized.submittedAtTimestamp as string,
-        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null,
+        submittedAt: serialized.submittedAt as string, // Expect 'submittedAt'
+        reviewedAt: serialized.reviewedAt ? serialized.reviewedAt as string : null, // Expect 'reviewedAt'
         adminNotes: serialized.adminNotes || null,
       } as UserCourseCertificate;
     }
@@ -673,7 +680,7 @@ export const getUserCourseCertificateForCourse = async (
 export const getCertificatesForCourseForAdmin = async (courseId: string): Promise<UserCourseCertificate[]> => {
   try {
     const certificatesCol = collection(db, 'userCourseCertificates');
-    const q = query(certificatesCol, where('courseId', '==', courseId), orderBy('submittedAtTimestamp', 'desc'));
+    const q = query(certificatesCol, where('courseId', '==', courseId), orderBy('submittedAt', 'desc')); // Order by 'submittedAt'
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
@@ -688,8 +695,8 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
         userEmail: serialized.userEmail,
         certificateUrl: serialized.certificateUrl,
         status: serialized.status,
-        submittedAt: serialized.submittedAtTimestamp as string,
-        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null,
+        submittedAt: serialized.submittedAt as string, // Expect 'submittedAt'
+        reviewedAt: serialized.reviewedAt ? serialized.reviewedAt as string : null, // Expect 'reviewedAt'
         adminNotes: serialized.adminNotes || null,
       } as UserCourseCertificate;
     });
@@ -702,9 +709,9 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
 export const updateCertificateStatusByAdmin = async (certificateId: string, status: 'approved' | 'rejected', adminNotes?: string): Promise<void> => {
   try {
     const certRef = doc(db, 'userCourseCertificates', certificateId);
-    const updateData: Partial<UserCourseCertificate> & { reviewedAtTimestamp: any } = { 
+    const updateData: Partial<UserCourseCertificate> & { reviewedAt: any } = { // Use 'reviewedAt'
       status,
-      reviewedAtTimestamp: serverTimestamp(),
+      reviewedAt: serverTimestamp(), // Field name is 'reviewedAt'
     };
     if (adminNotes && adminNotes.trim() !== "") {
       updateData.adminNotes = adminNotes;
