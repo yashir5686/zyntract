@@ -9,7 +9,7 @@ const serializeFirestoreData = (data: Record<string, any>): Record<string, any> 
   for (const key in data) {
     if (data[key] instanceof Timestamp) {
       serializedData[key] = (data[key] as Timestamp).toDate().toISOString();
-    } else if (data[key] instanceof Date) { 
+    } else if (data[key] instanceof Date) {
       serializedData[key] = data[key].toISOString();
     }
      else {
@@ -113,8 +113,8 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
     return appSnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
       const serialized = serializeFirestoreData(rawData);
-      return { 
-        id: docSnap.id, 
+      return {
+        id: docSnap.id,
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
@@ -138,8 +138,8 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
     return appSnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
       const serialized = serializeFirestoreData(rawData);
-      return { 
-        id: docSnap.id, 
+      return {
+        id: docSnap.id,
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         status: serialized.status,
@@ -183,14 +183,14 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
 
     if (!existingAppSnapshot.empty) {
        const existingAppId = existingAppSnapshot.docs[0].id;
-       await updateCampaignApplicationStatus(existingAppId, 'approved'); 
-       return existingAppId; 
+       await updateCampaignApplicationStatus(existingAppId, 'approved');
+       return existingAppId;
     }
-    
+
     const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAtTimestamp: any } = {
       userId,
       campaignId,
-      status: 'approved', 
+      status: 'approved',
       userName: userData.displayName || userData.username || 'Anonymous',
       userEmail: userData.email || 'N/A',
       campaignName: campaignName || 'N/A', // Campaign name should ideally be passed correctly
@@ -209,7 +209,7 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
 // DAILY CHALLENGES
 export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> => {
   try {
-    const today = new Date().toISOString().split('T')[0]; 
+    const today = new Date().toISOString().split('T')[0];
     const challengesCol = collection(db, 'dailyChallenges');
     const q = query(challengesCol, where('date', '==', today), limit(1));
     const challengeSnapshot = await getDocs(q);
@@ -239,7 +239,7 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
       solution,
       submittedAtTimestamp: serverTimestamp(),
     };
-    const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`); 
+    const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`);
     await setDoc(submissionRef, userSolutionData );
 
     const userRef = doc(db, 'users', userId);
@@ -248,16 +248,16 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         const currentPoints = userSnap.data()?.points || 0;
         const currentStreak = userSnap.data()?.dailyChallengeStreak || 0;
         await updateDoc(userRef, {
-            points: currentPoints + 10, 
+            points: currentPoints + 10,
             dailyChallengeStreak: currentStreak + 1,
         });
     }
-    
+
     // For the return type, ensure 'submittedAt' is derived correctly if needed by client immediately
     const rawReturnData = await getDoc(submissionRef);
     const serializedReturn = serializeFirestoreData(rawReturnData.data()!);
 
-    return { 
+    return {
         userId: serializedReturn.userId,
         challengeId: serializedReturn.challengeId,
         solution: serializedReturn.solution,
@@ -266,7 +266,7 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
     } as UserSolution;
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
-    throw error; 
+    throw error;
   }
 };
 
@@ -338,7 +338,7 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
     return !querySnapshot.empty;
   } catch (error) {
     console.error("Error checking username: ", error);
-    return true; 
+    return true;
   }
 };
 
@@ -367,7 +367,7 @@ export const addCourseToCampaign = async (campaignId: string, courseData: Omit<C
       createdAtTimestamp: serverTimestamp(), // Use a distinct name for Firestore Timestamp
     };
     const docRef = await addDoc(coursesColRef, newCourseDataWithTimestamp);
-    
+
     // Fetch the document to get the server-generated timestamp
     const newDocSnap = await getDoc(docRef);
     const rawData = newDocSnap.data();
@@ -427,8 +427,8 @@ export const addProjectToCampaign = async (campaignId: string, projectData: Omit
     const rawData = newDocSnap.data();
     if (!rawData) throw new Error("Failed to fetch newly added project.");
     const serialized = serializeFirestoreData(rawData);
-    return { 
-        id: docRef.id, 
+    return {
+        id: docRef.id,
         campaignId: serialized.campaignId,
         title: serialized.title,
         description: serialized.description,
@@ -555,7 +555,7 @@ export const submitOrUpdateCourseCertificate = async (
       userName: userProfile.displayName || userProfile.username || 'Anonymous',
       userEmail: userProfile.email || 'N/A',
       certificateUrl,
-      status: 'review', 
+      status: 'review',
       submittedAtTimestamp: serverTimestamp(), // For ordering and conversion
       reviewedAtTimestamp: null, // Explicitly null on new/resubmission
       adminNotes: null, // Explicitly null on new/resubmission
@@ -570,22 +570,22 @@ export const submitOrUpdateCourseCertificate = async (
       const existingDoc = snapshot.docs[0];
       docId = existingDoc.id;
       const existingData = existingDoc.data() as Partial<UserCourseCertificate>;
-      
+
       if (existingData.status === 'approved') {
         throw new Error('Cannot update an approved certificate.');
       }
       // For resubmission, update URL, reset status to review, update timestamp, clear review fields
       await updateDoc(doc(db, 'userCourseCertificates', docId), {
         certificateUrl: dataToUpsert.certificateUrl,
-        userName: dataToUpsert.userName, 
+        userName: dataToUpsert.userName,
         userEmail: dataToUpsert.userEmail,
         status: 'review', // Reset to review
         submittedAtTimestamp: dataToUpsert.submittedAtTimestamp, // Update submission time
-        reviewedAtTimestamp: null, 
-        adminNotes: null, 
+        reviewedAtTimestamp: null,
+        adminNotes: null,
       });
     }
-    
+
     const finalDocSnap = await getDoc(doc(db, 'userCourseCertificates', docId));
     if (!finalDocSnap.exists()) {
         throw new Error('Failed to retrieve certificate after submission.');
@@ -593,7 +593,7 @@ export const submitOrUpdateCourseCertificate = async (
     const rawFinalData = finalDocSnap.data();
     const serializedFinal = serializeFirestoreData(rawFinalData);
 
-    return { 
+    return {
         id: finalDocSnap.id,
         userId: serializedFinal.userId,
         campaignId: serializedFinal.campaignId,
@@ -629,19 +629,19 @@ export const getUserCourseCertificateForCourse = async (
     if (!snapshot.empty) {
       const docSnap = snapshot.docs[0];
       const rawData = docSnap.data();
-      const serialized = serializeFirestoreData(rawData); 
+      const serialized = serializeFirestoreData(rawData);
 
       return {
         id: docSnap.id,
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         courseId: serialized.courseId,
-        userName: serialized.userName, 
-        userEmail: serialized.userEmail, 
+        userName: serialized.userName,
+        userEmail: serialized.userEmail,
         certificateUrl: serialized.certificateUrl,
         status: serialized.status,
-        submittedAt: serialized.submittedAtTimestamp as string, 
-        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null, 
+        submittedAt: serialized.submittedAtTimestamp as string,
+        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null,
         adminNotes: serialized.adminNotes || null,
       } as UserCourseCertificate;
     }
@@ -660,19 +660,19 @@ export const getCertificatesForCourseForAdmin = async (courseId: string): Promis
     const snapshot = await getDocs(q);
     return snapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
-      const serialized = serializeFirestoreData(rawData); 
+      const serialized = serializeFirestoreData(rawData);
 
       return {
         id: docSnap.id,
         userId: serialized.userId,
         campaignId: serialized.campaignId,
         courseId: serialized.courseId,
-        userName: serialized.userName, 
-        userEmail: serialized.userEmail, 
+        userName: serialized.userName,
+        userEmail: serialized.userEmail,
         certificateUrl: serialized.certificateUrl,
         status: serialized.status,
-        submittedAt: serialized.submittedAtTimestamp as string, 
-        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null, 
+        submittedAt: serialized.submittedAtTimestamp as string,
+        reviewedAt: serialized.reviewedAtTimestamp ? serialized.reviewedAtTimestamp as string : null,
         adminNotes: serialized.adminNotes || null,
       } as UserCourseCertificate;
     });
@@ -692,9 +692,9 @@ export const updateCertificateStatusByAdmin = async (certificateId: string, stat
     if (adminNotes && adminNotes.trim() !== "") {
       updateData.adminNotes = adminNotes;
     } else if (status === 'rejected' && (!adminNotes || adminNotes.trim() === "")) {
-      updateData.adminNotes = 'No specific reason provided.'; 
+      updateData.adminNotes = 'No specific reason provided.';
     } else {
-       updateData.adminNotes = null; 
+       updateData.adminNotes = null;
     }
 
     await updateDoc(certRef, updateData as any); // Cast to any if type complains about reviewedAtTimestamp during update
@@ -714,8 +714,8 @@ export const seedCampaigns = async () => {
       {
         name: 'Web Dev Bootcamp',
         description: 'Master full-stack web development with React, Node.js, and Firebase.',
-        startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), 
-        endDate: new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString(), 
+        startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/7DF9FF/222831?text=Web+Dev',
         requiredPoints: 0,
@@ -728,13 +728,13 @@ export const seedCampaigns = async () => {
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/FFD700/222831?text=External+AI',
         requiredPoints: 20,
-        applyLink: 'https://forms.gle/example', 
+        applyLink: 'https://forms.gle/example',
       },
       {
         name: 'Data Science Hackathon (Internal)',
         description: 'Compete in a 48-hour data science hackathon. Apply directly through our platform.',
-        startDate: new Date().toISOString(), 
-        endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), 
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'ongoing',
         imageUrl: 'https://placehold.co/600x300.png/39FF14/222831?text=AI+Challenge',
         requiredPoints: 100,
@@ -742,15 +742,15 @@ export const seedCampaigns = async () => {
       {
         name: 'Mobile App Accelerator',
         description: 'Learn to build cross-platform mobile apps with Flutter.',
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), 
-        endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'past',
         imageUrl: 'https://placehold.co/600x300.png/FFFFFF/222831?text=Mobile+Apps',
         requiredPoints: 50,
       },
     ];
     for (const camp of dummyCampaigns) {
-      await addCampaign(camp); 
+      await addCampaign(camp);
     }
     console.log('Dummy campaigns seeded.');
   }
