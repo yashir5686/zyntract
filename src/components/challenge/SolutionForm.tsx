@@ -53,7 +53,6 @@ const LANGUAGES = [
   { value: 'cpp', label: 'C++' },
 ];
 
-// Ensure you have NEXT_PUBLIC_PAIZA_API_KEY=guest (or your actual key) in your .env.local file
 const PAIZA_API_BASE_URL = 'https://api.paiza.io';
 
 export default function SolutionForm({ challengeId, userId, examples, onSubmitSuccess }: SolutionFormProps) {
@@ -69,7 +68,14 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       input: ex.input,
       expectedOutput: ex.output,
       explanation: ex.explanation,
-      status: 'pending'
+      status: 'pending',
+      actualOutput: '',
+      stdout: '',
+      stderr: '',
+      build_stdout: '',
+      build_stderr: '',
+      exit_code: undefined,
+      build_exit_code: undefined,
     })));
   }, [examples]);
 
@@ -79,9 +85,12 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       return;
     }
     setIsRunningTests(true);
-    const apiKey = process.env.NEXT_PUBLIC_PAIZA_API_KEY || 'guest';
+    
+    const apiKeyFromEnv = process.env.NEXT_PUBLIC_PAIZA_API_KEY;
+    const apiKey = apiKeyFromEnv || 'guest';
+    console.log('[SolutionForm] Using Paiza API Key:', apiKeyFromEnv ? `Loaded from env (${apiKeyFromEnv.substring(0,5)}...)` : 'guest (defaulted because NEXT_PUBLIC_PAIZA_API_KEY is not set)');
     if (apiKey === 'guest' && process.env.NODE_ENV === 'production') {
-        console.warn("Using guest API key for Paiza.IO in production. This is not recommended.");
+        console.warn("[SolutionForm] Using 'guest' API key for Paiza.IO in production. This is not recommended and may be heavily rate-limited.");
     }
 
 
@@ -95,6 +104,8 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       stderr: '',
       build_stderr: '',
       build_stdout: '',
+      exit_code: undefined,
+      build_exit_code: undefined,
     } as TestResult));
     setTestResults(initialResults);
 
@@ -102,11 +113,11 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
 
     for (let i = 0; i < examples.length; i++) {
       const example = examples[i];
-      currentTestResults[i] = { ...currentTestResults[i], status: 'pending' };
-      setTestResults([...currentTestResults]); // Update UI to show this test is running
+      // No need to set to pending again here, initialResults already did.
+      // A 'running' status could be introduced if needed, but 'pending' with a loader is usually sufficient.
+      setTestResults([...currentTestResults]); // Update UI to show this test is being processed (though status is still 'pending')
 
       try {
-        // 1. Create runner
         const createPayload = new URLSearchParams();
         createPayload.append('api_key', apiKey);
         createPayload.append('source_code', code);
@@ -122,8 +133,8 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         });
 
         if (!createResponse.ok) {
-            const errorData = await createResponse.json().catch(() => ({ error: 'Paiza API Error (create): Invalid API response format' }));
-            throw new Error(errorData.error || `Paiza API Error (create): ${createResponse.status}`);
+            const errorData = await createResponse.json().catch(() => ({ error: `Paiza API Error (create): HTTP ${createResponse.status}. Response not JSON.` }));
+            throw new Error(errorData.error_description || errorData.error || `Paiza API Error (create): ${createResponse.status}`);
         }
 
         const createResult = await createResponse.json();
@@ -132,14 +143,13 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         }
         const runnerId = createResult.id;
 
-        // 2. Poll for details
         let status = '';
         let attempts = 0;
-        const maxAttempts = 15; // Poll for ~15 seconds
+        const maxAttempts = 15; 
         let detailsResult: any;
 
         while (status !== 'completed' && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 sec
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
 
             const detailsParams = new URLSearchParams({
                 api_key: apiKey,
@@ -148,11 +158,14 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
             const detailsResponse = await fetch(`${PAIZA_API_BASE_URL}/runners/get_details?${detailsParams.toString()}`);
             
             if (!detailsResponse.ok) {
-                const errorData = await detailsResponse.json().catch(() => ({ error: 'Paiza API Error (details): Invalid API response format' }));
-                throw new Error(errorData.error || `Paiza API Error (details): ${detailsResponse.status}`);
+                const errorData = await detailsResponse.json().catch(() => ({ error: `Paiza API Error (details): HTTP ${detailsResponse.status}. Response not JSON.` }));
+                throw new Error(errorData.error_description || errorData.error || `Paiza API Error (details): ${detailsResponse.status}`);
             }
 
             detailsResult = await detailsResponse.json();
+             if (detailsResult.error) {
+                throw new Error(`Paiza API Error (details): ${detailsResult.error_description || detailsResult.error}`);
+            }
             status = detailsResult.status;
             attempts++;
         }
@@ -167,14 +180,14 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         if (status !== 'completed') {
             currentTestResults[i].status = 'error';
             currentTestResults[i].actualOutput = 'Error: Execution timed out or did not complete on Paiza.IO.';
-        } else if (detailsResult.build_exit_code !== 0 || detailsResult.build_stderr) {
+        } else if (detailsResult.build_exit_code !== 0 || (detailsResult.build_stderr && detailsResult.build_stderr.trim() !== '')) {
             currentTestResults[i].status = 'error';
             currentTestResults[i].actualOutput = `Build Failed:\n${detailsResult.build_stderr || detailsResult.build_stdout || 'Unknown build error'}`;
-        } else if (detailsResult.exit_code !== 0 || detailsResult.stderr) {
+        } else if (detailsResult.exit_code !== 0 || (detailsResult.stderr && detailsResult.stderr.trim() !== '')) {
              currentTestResults[i].status = 'error';
              currentTestResults[i].actualOutput = `Runtime Error:\n${detailsResult.stderr || 'Unknown runtime error'}`;
         } else {
-            currentTestResults[i].actualOutput = (detailsResult.stdout || '').trimEnd(); // Trim only trailing newlines/spaces for comparison
+            currentTestResults[i].actualOutput = (detailsResult.stdout || '').trimEnd();
             const expected = example.output.trimEnd();
             if (currentTestResults[i].actualOutput === expected) {
                 currentTestResults[i].status = 'passed';
@@ -187,11 +200,23 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
         currentTestResults[i].status = 'error';
         currentTestResults[i].actualOutput = `Client-side Error: ${error.message}`;
       }
-      setTestResults([...currentTestResults]); // Update UI after each test case finishes
+      setTestResults([...currentTestResults]); 
     }
 
     setIsRunningTests(false);
-    toast({ title: 'Tests Finished', description: 'Review the results below.' });
+    const allPassed = currentTestResults.every(r => r.status === 'passed');
+    const anyFailed = currentTestResults.some(r => r.status === 'failed' || r.status === 'error');
+    if (currentTestResults.length > 0) {
+        if (allPassed) {
+            toast({ title: 'Tests Finished: All Passed!', description: 'Great job!', variant: 'default' });
+        } else if (anyFailed) {
+            toast({ title: 'Tests Finished: Some Failed', description: 'Review the results below.', variant: 'destructive' });
+        } else {
+            toast({ title: 'Tests Finished', description: 'Review the results below.' });
+        }
+    } else {
+         toast({ title: 'No Tests Executed', description: 'There were no examples to test against.' });
+    }
   };
 
   const handleSubmitSolution = async (e: React.FormEvent) => {
@@ -212,12 +237,16 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
     }
   };
 
+  const paizaKeyStatusMessage = process.env.NEXT_PUBLIC_PAIZA_API_KEY 
+    ? (process.env.NEXT_PUBLIC_PAIZA_API_KEY === 'guest' ? 'Using GUEST key (limited)' : 'Key Loaded')
+    : 'Key Not Found (using GUEST)';
+
   return (
     <form onSubmit={handleSubmitSolution} className="mt-8 space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-xl">Code Your Solution</CardTitle>
-          <CardDescription>Select language, write code, run tests, then submit. (Paiza.IO API key: {process.env.NEXT_PUBLIC_PAIZA_API_KEY ? 'Loaded' : 'Not Found - Set NEXT_PUBLIC_PAIZA_API_KEY in .env.local'})</CardDescription>
+          <CardDescription>Select language, write code, run tests, then submit. (Paiza.IO API: {paizaKeyStatusMessage})</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -275,11 +304,16 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
               <div key={index} className={`p-3 rounded-md border ${
                 result.status === 'passed' ? 'border-green-500 bg-green-500/10' :
                 result.status === 'failed' ? 'border-red-500 bg-red-500/10' :
-                result.status === 'error' ? 'border-yellow-500 bg-yellow-500/10' :
-                'border-border bg-muted/50' // Pending
+                result.status === 'error' ? 'border-yellow-600 bg-yellow-600/10' : // Changed to yellow-600 for better visibility in dark mode
+                'border-border bg-muted/50' 
               }`}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-semibold text-sm">
+                  <p className={`font-semibold text-sm ${
+                     result.status === 'passed' ? 'text-green-700 dark:text-green-400' :
+                     result.status === 'failed' ? 'text-red-700 dark:text-red-400' :
+                     result.status === 'error' ? 'text-yellow-700 dark:text-yellow-500' :
+                     'text-foreground'
+                  }`}>
                     Example {index + 1}: {result.status.charAt(0).toUpperCase() + result.status.slice(1)}
                   </p>
                   {result.status === 'passed' && <CheckCircle className="w-5 h-5 text-green-500" />}
@@ -289,24 +323,50 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
                 </div>
                 <div className="text-xs space-y-1 ">
                   <p className="text-muted-foreground"><strong>Input:</strong></p>
-                  <pre className="whitespace-pre-wrap bg-muted/30 p-1 rounded-sm font-mono text-foreground">{result.input}</pre>
+                  <pre className="whitespace-pre-wrap bg-muted/30 p-1 rounded-sm font-mono text-foreground max-h-20 overflow-y-auto">{result.input}</pre>
                   
                   <p className="text-muted-foreground mt-1"><strong>Expected Output:</strong></p>
-                  <pre className="whitespace-pre-wrap bg-muted/30 p-1 rounded-sm font-mono text-foreground">{result.expectedOutput}</pre>
+                  <pre className="whitespace-pre-wrap bg-muted/30 p-1 rounded-sm font-mono text-foreground max-h-20 overflow-y-auto">{result.expectedOutput}</pre>
                   
                   {result.status !== 'pending' && result.actualOutput !== undefined && (
                      <>
                         <p className="text-muted-foreground mt-1"><strong>Actual Output:</strong></p>
-                        <pre className={`whitespace-pre-wrap p-1 rounded-sm font-mono ${result.status === 'error' ? 'text-red-500 bg-red-500/5' : 'text-foreground bg-muted/30'}`}>{result.actualOutput || (result.status !== 'error' ? '(No output)' : '')}</pre>
+                        <pre className={`whitespace-pre-wrap p-1 rounded-sm font-mono max-h-20 overflow-y-auto ${
+                            result.status === 'error' ? 'text-yellow-700 dark:text-yellow-500 bg-yellow-600/5' : 
+                            result.status === 'failed' ? 'text-red-700 dark:text-red-400 bg-red-500/5' :
+                            'text-foreground bg-muted/30'
+                        }`}>{result.actualOutput || (result.status !== 'error' && result.status !== 'failed' ? '(No output)' : '')}</pre>
                      </>
+                  )}
+                  {result.stdout && result.status !== 'error' && ( // Show raw stdout if it exists and not an error state already showing it
+                    <>
+                      <p className="text-muted-foreground mt-1"><strong>Stdout:</strong></p>
+                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-foreground bg-muted/30 max-h-20 overflow-y-auto">{result.stdout}</pre>
+                    </>
+                  )}
+                   {result.stderr && (
+                    <>
+                      <p className="text-muted-foreground mt-1"><strong>Stderr:</strong></p>
+                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-500 bg-red-500/5 max-h-20 overflow-y-auto">{result.stderr}</pre>
+                    </>
+                  )}
+                  {result.build_stderr && (
+                    <>
+                      <p className="text-muted-foreground mt-1"><strong>Build Stderr:</strong></p>
+                      <pre className="whitespace-pre-wrap p-1 rounded-sm font-mono text-red-500 bg-red-500/5 max-h-20 overflow-y-auto">{result.build_stderr}</pre>
+                    </>
                   )}
                   {result.explanation && <p className="text-muted-foreground mt-1"><strong>Problem Explanation for Example:</strong> {result.explanation}</p>}
                 </div>
               </div>
             ))}
+             {examples.length === 0 && !isRunningTests && (
+                <p className="text-muted-foreground text-sm text-center py-4">No examples available for this challenge to test against.</p>
+            )}
           </CardContent>
         </Card>
       )}
     </form>
   );
 }
+
