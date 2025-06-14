@@ -8,82 +8,89 @@ body {
 
 @layer base {
   :root {
-    --background: 212 18% 16%; /* Dark gray */
-    --foreground: 0 0% 98%; /* Light gray / White */
+    --background: 240 3% 11%; /* Graphite Black */
+    --foreground: 0 0% 100%; /* Pure White */
 
-    --card: 212 18% 20%; /* Slightly lighter dark gray for cards */
-    --card-foreground: 0 0% 98%;
+    --card: 240 3% 14%; /* Derived from Graphite Black */
+    --card-foreground: 0 0% 100%; /* Pure White */
 
-    --popover: 212 18% 18%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 240 3% 9%; /* Derived from Graphite Black */
+    --popover-foreground: 0 0% 100%; /* Pure White */
 
-    --primary: 182 100% 74%; /* Electric Blue */
-    --primary-foreground: 212 20% 10%; /* Dark for contrast on Electric Blue */
+    --primary: 220 100% 57%; /* Zyn Blue */
+    --primary-foreground: 0 0% 100%; /* Pure White */
 
-    --secondary: 212 18% 25%; /* A lighter shade of dark gray for secondary elements */
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 240 3% 18%; /* Derived from Graphite Black, for secondary component backgrounds */
+    --secondary-foreground: 0 0% 100%; /* Pure White */
 
-    --muted: 212 18% 30%;
-    --muted-foreground: 0 0% 60%; /* Lighter gray for muted text */
+    --muted: 240 3% 22%; /* Derived from Graphite Black, for muted component parts background */
+    --muted-foreground: 0 0% 90%; /* Cool Gray, for text on muted backgrounds */
 
-    --accent: 111 100% 54%; /* Neon Green */
-    --accent-foreground: 212 20% 10%; /* Dark for contrast on Neon Green */
+    --accent: 263 100% 50%; /* Cyber Purple */
+    --accent-foreground: 0 0% 100%; /* Pure White */
 
     --destructive: 0 72% 51%; /* A standard destructive red */
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 98%; /* Pure White */
 
-    --border: 212 18% 35%; /* Border color that fits dark theme */
-    --input: 212 18% 28%; /* Input background */
-    --ring: 182 100% 60%; /* Ring color based on primary */
+    --border: 240 3% 25%; /* Derived from Graphite Black - subtle dark border */
+    --input: 240 3% 16%; /* Derived from Graphite Black - input background */
+    --ring: 220 100% 57%; /* Zyn Blue */
 
-    --chart-1: 182 100% 74%;
-    --chart-2: 111 100% 54%;
+    --chart-1: 220 100% 57%; /* Zyn Blue */
+    --chart-2: 263 100% 50%; /* Cyber Purple */
     --chart-3: 210 100% 70%;
     --chart-4: 30 100% 70%;
     --chart-5: 300 100% 70%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 212 18% 12%; /* Even darker for sidebar */
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 182 100% 74%;
-    --sidebar-primary-foreground: 212 20% 10%;
-    --sidebar-accent: 111 100% 54%;
-    --sidebar-accent-foreground: 212 20% 10%;
-    --sidebar-border: 212 18% 25%;
-    --sidebar-ring: 182 100% 60%;
+    --sidebar-background: 240 3% 8%; /* Even darker Graphite */
+    --sidebar-foreground: 0 0% 95%; /* Off-White */
+    --sidebar-primary: 220 100% 57%; /* Zyn Blue */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-accent: 263 100% 50%; /* Cyber Purple */
+    --sidebar-accent-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-border: 240 3% 18%; /* Dark Gray for sidebar internal borders */
+    --sidebar-ring: 220 100% 57%; /* Zyn Blue for ring */
   }
 
   .dark {
-    /* Dark theme is default, but if explicit .dark class is needed elsewhere */
-    --background: 212 18% 16%;
-    --foreground: 0 0% 98%;
-    --card: 212 18% 20%;
-    --card-foreground: 0 0% 98%;
-    --popover: 212 18% 18%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 182 100% 74%;
-    --primary-foreground: 212 20% 10%;
-    --secondary: 212 18% 25%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 212 18% 30%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 111 100% 54%;
-    --accent-foreground: 212 20% 10%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 212 18% 35%;
-    --input: 212 18% 28%;
-    --ring: 182 100% 60%;
+    --background: 240 3% 11%; /* Graphite Black */
+    --foreground: 0 0% 100%; /* Pure White */
 
-    --sidebar-background: 212 18% 12%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 182 100% 74%;
-    --sidebar-primary-foreground: 212 20% 10%;
-    --sidebar-accent: 111 100% 54%;
-    --sidebar-accent-foreground: 212 20% 10%;
-    --sidebar-border: 212 18% 25%;
-    --sidebar-ring: 182 100% 60%;
+    --card: 240 3% 14%; /* Derived from Graphite Black */
+    --card-foreground: 0 0% 100%; /* Pure White */
+
+    --popover: 240 3% 9%; /* Derived from Graphite Black */
+    --popover-foreground: 0 0% 100%; /* Pure White */
+
+    --primary: 220 100% 57%; /* Zyn Blue */
+    --primary-foreground: 0 0% 100%; /* Pure White */
+
+    --secondary: 240 3% 18%; /* Derived from Graphite Black, for secondary component backgrounds */
+    --secondary-foreground: 0 0% 100%; /* Pure White */
+
+    --muted: 240 3% 22%; /* Derived from Graphite Black, for muted component parts background */
+    --muted-foreground: 0 0% 90%; /* Cool Gray, for text on muted backgrounds */
+
+    --accent: 263 100% 50%; /* Cyber Purple */
+    --accent-foreground: 0 0% 100%; /* Pure White */
+
+    --destructive: 0 72% 51%; /* A standard destructive red */
+    --destructive-foreground: 0 0% 98%; /* Pure White */
+
+    --border: 240 3% 25%; /* Derived from Graphite Black - subtle dark border */
+    --input: 240 3% 16%; /* Derived from Graphite Black - input background */
+    --ring: 220 100% 57%; /* Zyn Blue */
+
+    --sidebar-background: 240 3% 8%; /* Even darker Graphite */
+    --sidebar-foreground: 0 0% 95%; /* Off-White */
+    --sidebar-primary: 220 100% 57%; /* Zyn Blue */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-accent: 263 100% 50%; /* Cyber Purple */
+    --sidebar-accent-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-border: 240 3% 18%; /* Dark Gray for sidebar internal borders */
+    --sidebar-ring: 220 100% 57%; /* Zyn Blue for ring */
   }
 }
 
