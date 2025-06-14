@@ -1,16 +1,9 @@
+
 'use server';
 
-// const paiza = require('paiza-io'); // Temporarily disabled
+// import PaizaIO from '@s10akir/node-paiza-io'; // Package removed due to install issues
 
-interface PaizaIOOptions {
-  source_code: string;
-  language: string;
-  input: string;
-  api_key: string;
-  longpoll?: boolean;
-  longpoll_timeout?: number;
-}
-
+// Interface matching the fields used by SolutionForm.tsx
 export interface PaizaExecutionResult {
   id?: string;
   language?: string;
@@ -21,67 +14,51 @@ export interface PaizaExecutionResult {
   build_exit_code?: number | null;
   build_time?: string | null;
   build_memory?: number | null;
-  build_result?: string | null;
+  build_result?: string | null; // Paiza uses 'success', 'failure', 'error'
   stdout?: string | null;
   stderr?: string | null;
   exit_code?: number | null;
   time?: string | null;
   memory?: number | null;
   connections?: number | null;
-  result?: string | null;
-  error?: string;
-  message?: string;
+  result?: string | null; // Paiza uses 'success', 'failure', 'error', 'timeout'
+  error?: string; // Custom error message for client-side issues or API errors
+  message?: string; // Additional message, e.g., from package
 }
 
+// const POLLING_INTERVAL_MS = 1000; // Not used if package is removed
+// const MAX_POLLING_ATTEMPTS = 20; // Not used if package is removed
 
 export async function executeCodeAction(
   language: string,
   source_code: string,
   input: string
 ): Promise<PaizaExecutionResult> {
-  // const apiKey = process.env.NEXT_PUBLIC_PAIZA_API_KEY || 'guest';
+  // const apiKey = process.env.NEXT_PUBLIC_PAIZA_API_KEY || 'guest'; // Not used if package is removed
+  console.warn('[executeCodeAction] The @s10akir/node-paiza-io package is not installed or is currently unavailable. Code execution is disabled.');
+  // console.log('[executeCodeAction] Paiza.IO API Key (if package were used):', apiKey === 'guest' ? 'guest' : 'configured (hidden)');
 
-  // const options = {
-  //   api_key: apiKey,
-  // };
 
-  console.log('[executeCodeAction] Paiza.IO integration is temporarily disabled due to installation issues.');
-  
-  // Return a result indicating the service is unavailable
-  return Promise.resolve({
-    error: 'Code execution service is temporarily unavailable.',
-    status: 'error_service_unavailable',
-    message: 'The paiza-io package could not be installed. Please try again later or check the server logs.',
+  // Return a simulated error result
+  return {
+    id: undefined, // Or a mock ID like 'mock-execution-id'
+    language: language,
+    note: 'Code execution service unavailable.',
+    status: 'service_unavailable', 
+    build_stdout: null,
+    build_stderr: 'Code execution service is currently unavailable. The required package (@s10akir/node-paiza-io) could not be installed.',
+    build_exit_code: null,
+    build_time: null,
+    build_memory: null,
+    build_result: 'error',
     stdout: null,
-    stderr: 'Service Unavailable',
-    build_stderr: null,
-    exit_code: -1,
-    build_exit_code: -1,
+    stderr: 'Code execution service is currently unavailable. The required package (@s10akir/node-paiza-io) could not be installed.',
+    exit_code: null,
+    time: null,
+    memory: null,
+    connections: null,
     result: 'failure',
-  });
-
-  // try {
-  //   return new Promise<PaizaExecutionResult>((resolve) => {
-  //     paiza(language, source_code, input, options, (error: any, result: PaizaExecutionResult) => {
-  //       if (error) {
-  //         console.error('[executeCodeAction] Paiza.IO package error:', error);
-  //         let errorMessage = 'Paiza.IO execution failed.';
-  //         if (typeof error === 'string') {
-  //           errorMessage = error;
-  //         } else if (error && typeof error.message === 'string') {
-  //           errorMessage = error.message;
-  //         } else if (error && typeof error.error === 'string') {
-  //           errorMessage = error.error;
-  //         }
-  //         resolve({ error: errorMessage, status: 'error_package_level', message: errorMessage });
-  //         return;
-  //       }
-  //       console.log('[executeCodeAction] Paiza.IO package result:', result);
-  //       resolve({ ...result, status: result.status || 'unknown' });
-  //     });
-  //   });
-  // } catch (e: any) {
-  //   console.error('[executeCodeAction] Exception calling Paiza.IO package:', e);
-  //   return Promise.resolve({ error: 'Exception during Paiza.IO call.', status: 'error_exception', message: e.message });
-  // }
+    error: 'Code execution service is currently unavailable. The required package (@s10akir/node-paiza-io) could not be installed.',
+    message: 'The @s10akir/node-paiza-io package failed to install. Please check your npm environment or try again later.',
+  };
 }
