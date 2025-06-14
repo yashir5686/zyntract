@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge'; // Corrected import
 import { Play, Send, AlertCircle, CheckCircle, XCircle, Loader2, Info, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { ChallengeExample } from '@/types';
@@ -33,9 +33,9 @@ interface TestResult {
   errorDetails?: string | null;
   exitCode?: number | null;
   buildExitCode?: number | null;
-  paizaStatus?: string | null; // From PaizaIO details.status
-  paizaResult?: string | null; // From PaizaIO details.result
-  paizaBuildResult?: string | null; // From PaizaIO details.build_result
+  paizaStatus?: string | null; 
+  paizaResult?: string | null; 
+  paizaBuildResult?: string | null; 
 }
 
 const LANGUAGES = [
@@ -44,6 +44,7 @@ const LANGUAGES = [
   { value: 'java', label: 'Java' },
   { value: 'c', label: 'C' },
   { value: 'cpp', label: 'C++' },
+  { value: 'ruby', label: 'Ruby' }, // Added Ruby as per package examples
 ];
 
 async function mockSubmitSolution(userId: string, challengeId: string, code: string, language: string): Promise<{ pointsAwarded: number }> {
@@ -100,46 +101,47 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       errorDetails: null,
       exitCode: null,
       buildExitCode: null,
-      paizaStatus: 'running',
+      paizaStatus: 'running', // Initial Paiza status assumption
       paizaResult: null,
       paizaBuildResult: null,
     }));
     setTestResults([...currentTestResults]);
 
-    console.log('[SolutionForm] Using Paiza.IO API Key for Server Action via NEXT_PUBLIC_PAIZA_API_KEY');
 
     for (let i = 0; i < examples.length; i++) {
       const example = examples[i];
       
       try {
+        console.log(`[SolutionForm] Executing test case #${i + 1} for language: ${selectedLanguage}`);
         const result: PaizaExecutionResult = await executeCodeAction(selectedLanguage, code, example.input);
         
-        currentTestResults[i].paizaStatus = result.status;
+        currentTestResults[i].paizaStatus = result.status; // e.g., 'completed', 'running'
         currentTestResults[i].exitCode = result.exit_code;
         currentTestResults[i].buildExitCode = result.build_exit_code;
-        currentTestResults[i].paizaResult = result.result;
-        currentTestResults[i].paizaBuildResult = result.build_result;
+        currentTestResults[i].paizaResult = result.result; // e.g., 'success', 'failure', 'timeout'
+        currentTestResults[i].paizaBuildResult = result.build_result; // e.g., 'success', 'failure'
 
 
-        if (result.status === 'error_package_exception' || result.status === 'error_service_unavailable' || result.status === 'error_timeout_polling') {
-          currentTestResults[i].status = result.status as 'api_error' | 'service_unavailable' | 'error_timeout_polling';
+        if (result.status === 'service_unavailable' || result.error ) {
+          currentTestResults[i].status = result.status === 'service_unavailable' ? 'service_unavailable' : 'api_error';
           currentTestResults[i].actualOutput = result.error || result.message || 'Service communication error.';
-          currentTestResults[i].errorDetails = result.error || result.message || 'Failed to execute due to a service issue.';
-        } else if (result.build_stderr || result.build_result === 'failure') {
+          currentTestResults[i].errorDetails = result.stderr || result.build_stderr || result.error || result.message || 'Failed to execute due to a service issue.';
+        } else if (result.build_result === 'failure') { // Check build_result first for compilation errors
           currentTestResults[i].status = 'error';
           currentTestResults[i].actualOutput = 'Compilation Error';
           currentTestResults[i].errorDetails = result.build_stderr || result.build_stdout || 'Build failed.';
-        } else if (result.stderr) {
+        } else if (result.status === 'completed' && result.result === 'failure') { // Runtime error after successful build
           currentTestResults[i].status = 'error';
           currentTestResults[i].actualOutput = 'Runtime Error';
-          currentTestResults[i].errorDetails = result.stderr;
+          currentTestResults[i].errorDetails = result.stderr || 'Runtime execution failed.';
         } else if (result.status === 'completed' && result.result === 'timeout') {
             currentTestResults[i].status = 'timeout';
             currentTestResults[i].actualOutput = 'Execution Timed Out';
-            currentTestResults[i].errorDetails = 'Your solution took too long to execute.';
+            currentTestResults[i].errorDetails = result.stderr || 'Your solution took too long to execute.';
         } else if (result.status === 'completed' && result.result === 'success') {
           const actual = result.stdout ? result.stdout.trim() : '';
-          currentTestResults[i].actualOutput = result.stdout;
+          currentTestResults[i].actualOutput = result.stdout; // Main output
+          currentTestResults[i].errorDetails = result.stderr; // Display stderr even on success, as it might contain warnings
           if (actual === example.output.trim()) {
             currentTestResults[i].status = 'passed';
           } else {
@@ -149,18 +151,18 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
           currentTestResults[i].status = result.status as 'running' | 'compiling';
           currentTestResults[i].actualOutput = `Status: ${result.status}`;
           currentTestResults[i].errorDetails = `The code is still processing (status: ${result.status}). This might take a moment.`;
-        } else {
+        } else { // Fallback for other Paiza states
           currentTestResults[i].status = 'error';
-          currentTestResults[i].actualOutput = `Unexpected Status: ${result.status || 'N/A'}, Result: ${result.result || 'N/A'}`;
-          currentTestResults[i].errorDetails = `An unexpected status was returned. Full result: ${JSON.stringify(result)}`;
+          currentTestResults[i].actualOutput = `Unexpected Paiza Status: ${result.status || 'N/A'}, Result: ${result.result || 'N/A'}`;
+          currentTestResults[i].errorDetails = result.stderr || result.build_stderr || `An unexpected status was returned. Full Paiza.IO result: status='${result.status}', result='${result.result}'`;
         }
       } catch (e: any) {
-        console.error("Error calling executeCodeAction from client:", e);
+        console.error("[SolutionForm] Client-side error calling executeCodeAction:", e);
         currentTestResults[i].status = 'api_error';
-        currentTestResults[i].actualOutput = 'Client Error';
-        currentTestResults[i].errorDetails = e.message || 'Failed to run test due to a client-side error calling the action.';
+        currentTestResults[i].actualOutput = 'Client Error Calling Action';
+        currentTestResults[i].errorDetails = e.message || 'Failed to run test due to a client-side error calling the server action.';
       }
-      setTestResults([...currentTestResults]); // Update results after each test case
+      setTestResults([...currentTestResults]); 
     }
     setIsRunningTests(false);
     toast({ title: 'Tests Completed', description: 'Check the results below.' });
@@ -206,7 +208,7 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
       <Card>
         <CardHeader>
           <CardTitle className="font-headline text-xl">Code Your Solution</CardTitle>
-          <CardDescription>Select language, write code, and run tests.</CardDescription>
+          <CardDescription>Select language, write code, and run tests against examples.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="mb-4">
@@ -279,7 +281,10 @@ export default function SolutionForm({ challengeId, userId, examples, onSubmitSu
                   <div className="mt-1.5">
                     <p className="text-xs text-muted-foreground font-medium">Actual Output (stdout):</p>
                     <pre className={`p-1.5 rounded-sm whitespace-pre-wrap break-all text-xs ${result.status === 'error' || result.status === 'api_error' || result.status === 'service_unavailable' || result.status === 'error_timeout_polling' ? 'bg-destructive/10 text-destructive-foreground' : 'bg-muted text-foreground'}`}>
-                      {result.actualOutput === null ? (result.status === 'passed' ? result.expectedOutput : 'No output / Not available') : result.actualOutput}
+                      {result.actualOutput === null ? 
+                       (result.status === 'passed' ? result.expectedOutput : 'No output / Not available') : 
+                       (result.actualOutput === '' && (result.status === 'failed' || result.status === 'error') ? '[No Standard Output]' : result.actualOutput)
+                      }
                     </pre>
                   </div>
                 )}
