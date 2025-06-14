@@ -139,7 +139,7 @@ const CourseItemCard = ({ course, campaignId, userId }: CourseItemCardProps) => 
           <CardContent className="p-4 pt-0">
             <Button asChild variant="link" className="p-0 h-auto text-primary hover:text-primary/80 mb-4">
               <a href={course.courseUrl} target="_blank" rel="noopener noreferrer">
-                <LinkIcon className="w-4 h-4 mr-1" /> View Course Materials
+                <LinkIcon className="w-4 h-4 mr-1" /> View Course
               </a>
             </Button>
 
@@ -284,7 +284,7 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="w-full max-w-4xl mx-auto shadow-xl overflow-hidden">
+      <Card className="w-full max-w-4xl mx-auto shadow-xl">
         {campaign.imageUrl && (
           <div className="relative w-full h-64 md:h-80">
             <Image
@@ -425,3 +425,4 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
     </div>
   );
 }
+

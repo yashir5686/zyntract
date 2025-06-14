@@ -105,7 +105,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="w-full max-w-4xl mx-auto shadow-xl overflow-hidden">
+      <Card className="w-full max-w-4xl mx-auto shadow-xl">
         {campaign.imageUrl && (
           <div className="relative w-full h-64 md:h-80">
             <Image
@@ -199,8 +199,8 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             <TabsContent value="participants">
                 <Card className="shadow-md">
                     <CardHeader>
-                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Enrolled Participants</CardTitle>
-                        <CardDescription>View enrolled participants. Use the button below to manage all applications and enroll new students.</CardDescription>
+                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Approved Participants</CardTitle>
+                        <CardDescription>View approved participants. Use the button below to manage all applications and enroll new students.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
@@ -219,7 +219,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                         
                         <Separator />
 
-                        <h4 className="font-semibold text-md text-muted-foreground">Approved & Enrolled Participants ({approvedParticipants.length})</h4>
+                        <h4 className="font-semibold text-md text-muted-foreground">Currently Enrolled Participants ({approvedParticipants.length})</h4>
                         {isLoadingApplications ? (
                             <div className="flex justify-center items-center py-10">
                                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
