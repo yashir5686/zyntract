@@ -1,7 +1,23 @@
 
 import { db } from './config';
-import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution } from '@/types';
+
+// Helper function to serialize Firestore data
+const serializeFirestoreData = (data: Record<string, any>): Record<string, any> => {
+  const serializedData: Record<string, any> = {};
+  for (const key in data) {
+    if (data[key] instanceof Timestamp) {
+      serializedData[key] = (data[key] as Timestamp).toDate().toISOString();
+    } else if (data[key] instanceof Date) { // Also handle JS Date objects if they sneak in
+      serializedData[key] = data[key].toISOString();
+    }
+     else {
+      serializedData[key] = data[key];
+    }
+  }
+  return serializedData;
+};
 
 // CAMPAIGNS
 export const getCampaigns = async (): Promise<Campaign[]> => {
@@ -9,7 +25,10 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
     const campaignsCol = collection(db, 'campaigns');
     const q = query(campaignsCol, orderBy('startDate', 'asc'));
     const campaignSnapshot = await getDocs(q);
-    const campaignList = campaignSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Campaign));
+    const campaignList = campaignSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return { id: doc.id, ...serializeFirestoreData(data) } as Campaign;
+    });
     return campaignList;
   } catch (error) {
     console.error("Error fetching campaigns: ", error);
@@ -26,7 +45,8 @@ export const getCampaignById = async (campaignId: string): Promise<Campaign | nu
     const campaignRef = doc(db, 'campaigns', campaignId);
     const campaignSnap = await getDoc(campaignRef);
     if (campaignSnap.exists()) {
-      return { id: campaignSnap.id, ...campaignSnap.data() } as Campaign;
+      const data = campaignSnap.data();
+      return { id: campaignSnap.id, ...serializeFirestoreData(data) } as Campaign;
     }
     console.warn(`Campaign with ID ${campaignId} not found.`);
     return null;
@@ -44,14 +64,14 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id'>): Promise<s
       createdAt: serverTimestamp(),
     };
     if (!campaignData.applyLink) {
-      delete dataToAdd.applyLink; // Don't store empty string, store undefined or remove field
+      delete dataToAdd.applyLink;
     }
 
     const docRef = await addDoc(campaignsCol, dataToAdd);
     return docRef.id;
   } catch (error) {
     console.error("Error adding new campaign: ", error);
-    throw error; // Re-throw to be handled by the caller
+    throw error;
   }
 };
 
@@ -65,7 +85,7 @@ export const applyToCampaign = async (userId: string, campaignId: string, userNa
       throw new Error("You have already applied to this campaign.");
     }
 
-    const applicationData: Omit<CampaignApplication, 'id'> = {
+    const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAt: Date } = {
       userId,
       campaignId,
       status: 'pending',
@@ -89,19 +109,19 @@ export const applyToCampaign = async (userId: string, campaignId: string, userNa
 // DAILY CHALLENGES
 export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> => {
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0]; 
     const challengesCol = collection(db, 'dailyChallenges');
     const q = query(challengesCol, where('date', '==', today), limit(1));
     const challengeSnapshot = await getDocs(q);
     if (!challengeSnapshot.empty) {
       const docData = challengeSnapshot.docs[0];
-      return { id: docData.id, ...docData.data() } as DailyChallenge;
+      return { id: docData.id, ...serializeFirestoreData(docData.data()) } as DailyChallenge;
     }
     const fallbackQuery = query(challengesCol, orderBy('date', 'desc'), limit(1));
     const fallbackSnapshot = await getDocs(fallbackQuery);
     if (!fallbackSnapshot.empty) {
         const docData = fallbackSnapshot.docs[0];
-        return { id: docData.id, ...docData.data() } as DailyChallenge;
+        return { id: docData.id, ...serializeFirestoreData(docData.data()) } as DailyChallenge;
     }
 
     return null;
@@ -113,7 +133,7 @@ export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> 
 
 export const submitChallengeSolution = async (userId: string, challengeId: string, solution: string): Promise<UserSolution | null> => {
   try {
-    const userSolutionData: Omit<UserSolution, 'pointsAwarded'> = {
+    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt'> & { submittedAt: Date } = {
       userId,
       challengeId,
       solution,
@@ -133,7 +153,7 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
         });
     }
     
-    return { ...userSolutionData, pointsAwarded: 10 };
+    return { ...userSolutionData, submittedAt: userSolutionData.submittedAt.toISOString(), pointsAwarded: 10 };
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
     throw error; 
@@ -146,7 +166,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
-      return userSnap.data() as UserProfile;
+      return serializeFirestoreData(userSnap.data()) as UserProfile;
     }
     return null;
   } catch (error) {
@@ -161,7 +181,7 @@ export const getUserProfileByUsername = async (username: string): Promise<UserPr
     const q = query(usersRef, where('username', '==', username.toLowerCase()), limit(1));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data() as UserProfile;
+      return serializeFirestoreData(querySnapshot.docs[0].data()) as UserProfile;
     }
     return null;
   } catch (error) {
@@ -185,9 +205,15 @@ export const checkUsernameExists = async (username: string): Promise<boolean> =>
 export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      ...data,
-    });
+    // Ensure timestamps are handled correctly if they are part of data
+    const updateData: Partial<UserProfile> = { ...data };
+    if (updateData.createdAt && typeof updateData.createdAt === 'string') {
+        // If it's already a string, it might be from client, keep as is or re-evaluate if it needs to be a serverTimestamp
+    }
+    if (updateData.lastLogin && typeof updateData.lastLogin === 'string') {
+        // Same as createdAt
+    }
+    await updateDoc(userRef, updateData);
   } catch (error) {
     console.error("Error updating user profile: ", error);
     throw error;
@@ -199,7 +225,34 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
     const applicationsCol = collection(db, 'campaignApplications');
     const q = query(applicationsCol, where('userId', '==', userId), orderBy('appliedAtTimestamp', 'desc'));
     const appSnapshot = await getDocs(q);
-    return appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CampaignApplication));
+    return appSnapshot.docs.map(doc => {
+      const data = doc.data();
+      // The CampaignApplication type expects appliedAt to be a string.
+      // applyToCampaign stores appliedAt as a Date, and appliedAtTimestamp as serverTimestamp.
+      // We should prioritize appliedAtTimestamp if available for accuracy.
+      let appliedAtString: string;
+      if (data.appliedAtTimestamp instanceof Timestamp) {
+        appliedAtString = data.appliedAtTimestamp.toDate().toISOString();
+      } else if (data.appliedAt instanceof Timestamp) { // Fallback to appliedAt if it's a Timestamp
+        appliedAtString = data.appliedAt.toDate().toISOString();
+      } else if (data.appliedAt instanceof Date) { // Fallback if it's a JS Date
+         appliedAtString = data.appliedAt.toISOString();
+      }
+       else if (typeof data.appliedAt === 'string') { // If it's already a string
+        appliedAtString = data.appliedAt;
+      }
+      else {
+        appliedAtString = new Date().toISOString(); // Default if no valid date found
+      }
+
+      const serializedApp = serializeFirestoreData(data);
+
+      return { 
+        id: doc.id, 
+        ...serializedApp,
+        appliedAt: appliedAtString // Ensure appliedAt is a string
+      } as CampaignApplication;
+    });
   } catch (error) {
     console.error("Error fetching campaign applications for user: ", error);
     return [];
@@ -228,7 +281,7 @@ export const seedCampaigns = async () => {
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/FFD700/222831?text=External+AI',
         requiredPoints: 20,
-        applyLink: 'https://forms.gle/example', // Replace with a real or placeholder Google Form link
+        applyLink: 'https://forms.gle/example', 
       },
       {
         name: 'Data Science Hackathon (Internal)',
@@ -250,7 +303,7 @@ export const seedCampaigns = async () => {
       },
     ];
     for (const camp of dummyCampaigns) {
-      await addCampaign(camp); // Use the updated addCampaign function
+      await addCampaign(camp); 
     }
     console.log('Dummy campaigns seeded.');
   }
@@ -274,4 +327,3 @@ export const seedDailyChallenge = async () => {
     console.log('Dummy daily challenge for today seeded.');
   }
 };
-

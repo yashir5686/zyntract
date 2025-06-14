@@ -6,14 +6,14 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  username: string | null; // Added: Unique username
-  phoneNumber?: string | null; // Added: Optional phone number
+  username: string | null; 
+  phoneNumber?: string | null; 
   dailyChallengeStreak?: number;
   points?: number;
   isAdmin?: boolean;
-  createdAt?: any; // To store server timestamp
-  lastLogin?: any; // To store server timestamp
-  profileCompleted?: boolean; // To track if profile completion step is done
+  createdAt?: string | null; // Changed from any
+  lastLogin?: string | null; // Changed from any
+  profileCompleted?: boolean; 
 }
 
 export interface Campaign {
@@ -25,7 +25,8 @@ export interface Campaign {
   status: 'ongoing' | 'upcoming' | 'past';
   imageUrl?: string;
   requiredPoints?: number;
-  applyLink?: string; // Added: Optional external application link
+  applyLink?: string;
+  createdAt?: string; // Added for consistency if returned from DB
 }
 
 export interface CampaignApplication {
@@ -33,10 +34,11 @@ export interface CampaignApplication {
   userId: string;
   campaignId: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedAt: Date;
+  appliedAt: string; // Changed from Date
   userName?: string;
   userEmail?: string;
   campaignName?: string;
+  appliedAtTimestamp?: string; // if you intend to pass this to client
 }
 
 export interface DailyChallenge {
@@ -52,7 +54,7 @@ export interface UserSolution {
   challengeId: string;
   userId: string;
   solution: string;
-  submittedAt: Date;
+  submittedAt: string; // Changed from Date
   pointsAwarded?: number;
+  submittedAtTimestamp?: string; // if you intend to pass this to client
 }
-
