@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3 } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
@@ -17,11 +17,11 @@ import ManageQuizzesDialog from './dialogs/ManageQuizzesDialog';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CampaignAdminPanelProps {
   campaign: Campaign;
@@ -96,17 +96,23 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             )}
           </div>
         </CardHeader>
+        
         <CardContent className="p-6">
-          <h2 className="font-headline text-xl font-semibold mb-3 text-primary">About this Campaign</h2>
-          <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{campaign.description}</p>
-          
-          <Separator className="my-8" />
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+              <TabsTrigger value="details"><FileText className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Details</TabsTrigger>
+              <TabsTrigger value="content"><BookOpen className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Content</TabsTrigger>
+              <TabsTrigger value="participants"><Users2 className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Participants</TabsTrigger>
+              <TabsTrigger value="stats"><BarChart3 className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Stats</TabsTrigger>
+            </TabsList>
 
-          <section id="admin-controls" className="space-y-6">
-            <h2 className="font-headline text-2xl font-semibold text-primary border-b pb-2">Admin Controls</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="shadow-md">
+            <TabsContent value="details">
+              <h2 className="font-headline text-xl font-semibold mb-3 text-primary">About this Campaign</h2>
+              <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{campaign.description}</p>
+            </TabsContent>
+
+            <TabsContent value="content">
+                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle className="font-headline text-xl flex items-center"><BookOpen className="w-5 h-5 mr-2 text-primary"/> Manage Content</CardTitle>
                         <CardDescription>Add or edit courses, projects, and quizzes for this campaign.</CardDescription>
@@ -138,7 +144,9 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                         </Dialog>
                     </CardContent>
                 </Card>
+            </TabsContent>
 
+            <TabsContent value="participants">
                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Manage Participants</CardTitle>
@@ -147,7 +155,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                     <CardContent>
                         <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
                             <DialogTrigger asChild>
-                                <Button className="w-full justify-start" variant="outline"><Users2 className="w-4 h-4 mr-2"/> Manage Students</Button>
+                                <Button className="w-full justify-start" variant="outline"><Users2 className="w-4 h-4 mr-2"/> Manage Students & Applications</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                                 <ManageStudentsDialog campaignId={campaign.id} campaignName={campaign.name} setOpen={setIsManageStudentsOpen} />
@@ -155,18 +163,20 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                         </Dialog>
                     </CardContent>
                 </Card>
-            </div>
+            </TabsContent>
 
-             <Card className="shadow-md mt-6">
-                <CardHeader>
-                    <CardTitle className="font-headline text-xl flex items-center"><BarChart3 className="w-5 h-5 mr-2 text-primary"/> Campaign Statistics &amp; Overview</CardTitle>
-                    <CardDescription>View overall progress, enrollment numbers, and other key metrics.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">Statistics and overview section coming soon...</p>
-                </CardContent>
-            </Card>
-          </section>
+            <TabsContent value="stats">
+                <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle className="font-headline text-xl flex items-center"><BarChart3 className="w-5 h-5 mr-2 text-primary"/> Campaign Statistics &amp; Overview</CardTitle>
+                        <CardDescription>View overall progress, enrollment numbers, and other key metrics.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">Statistics and overview section coming soon...</p>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+          </Tabs>
         </CardContent>
         <CardFooter className="p-6 bg-secondary/20 flex justify-end">
              <Button asChild variant="outline">
