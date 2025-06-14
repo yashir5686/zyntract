@@ -1,15 +1,14 @@
 
 'use client';
 
-import type { Campaign } from '@/types';
+import type { Campaign, CampaignApplication } from '@/types';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, Edit, PlusCircle, Users2, BookOpen, Laptop, HelpCircle, BarChart3, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
 import ManageStudentsDialog from './dialogs/ManageStudentsDialog';
 import ManageProjectsDialog from './dialogs/ManageProjectsDialog';
@@ -22,17 +21,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getCampaignApplicationsForCampaign } from '@/lib/firebase/firestore';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CampaignAdminPanelProps {
   campaign: Campaign;
 }
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const getStatusBadge = (status: Campaign['status']) => {
+const getStatusBadge = (status: Campaign['status'] | CampaignApplication['status']) => {
   switch (status) {
     case 'ongoing':
       return <Badge variant="default" className="bg-green-500 hover:bg-green-600 whitespace-nowrap"><CheckCircle className="w-3 h-3 mr-1" /> Ongoing</Badge>;
@@ -40,16 +43,61 @@ const getStatusBadge = (status: Campaign['status']) => {
       return <Badge variant="secondary" className="bg-blue-500 hover:bg-blue-600 whitespace-nowrap"><Info className="w-3 h-3 mr-1" /> Upcoming</Badge>;
     case 'past':
       return <Badge variant="outline" className="bg-gray-500 hover:bg-gray-600 whitespace-nowrap"><AlertTriangle className="w-3 h-3 mr-1" /> Past</Badge>;
+    case 'approved':
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
+    case 'pending':
+        return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600"><Info className="w-3 h-3 mr-1" /> Pending</Badge>;
+    case 'rejected':
+        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" /> Rejected</Badge>;
     default:
       return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
   }
 };
+
+const ApplicationListItem = ({ application }: { application: CampaignApplication }) => {
+    return (
+        <Card className="bg-card-foreground/5">
+            <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                        <p className="font-semibold text-sm">{application.userName || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">{application.userEmail}</p>
+                        <p className="text-xs text-muted-foreground">Applied: {formatDate(application.appliedAt)}</p>
+                    </div>
+                    {getStatusBadge(application.status)}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps) {
   const [isManageCoursesOpen, setIsManageCoursesOpen] = useState(false);
   const [isManageProjectsOpen, setIsManageProjectsOpen] = useState(false);
   const [isManageQuizzesOpen, setIsManageQuizzesOpen] = useState(false);
   const [isManageStudentsOpen, setIsManageStudentsOpen] = useState(false);
+  
+  const [applicationsList, setApplicationsList] = useState<CampaignApplication[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      if (!campaign.id) return;
+      setIsLoadingApplications(true);
+      try {
+        const apps = await getCampaignApplicationsForCampaign(campaign.id);
+        setApplicationsList(apps);
+      } catch (error) {
+        console.error("Failed to fetch applications for admin panel:", error);
+        setApplicationsList([]); // Set to empty on error
+      } finally {
+        setIsLoadingApplications(false);
+      }
+    };
+    fetchApplications();
+  }, [campaign.id]);
+
 
   const handleEditCampaign = () => alert(`Editing campaign: ${campaign.name} (Not implemented yet)`);
 
@@ -149,18 +197,37 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             <TabsContent value="participants">
                 <Card className="shadow-md">
                     <CardHeader>
-                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Manage Participants</CardTitle>
-                        <CardDescription>View applications, enroll/remove participants from this campaign.</CardDescription>
+                        <CardTitle className="font-headline text-xl flex items-center"><Users2 className="w-5 h-5 mr-2 text-primary"/> Participants & Applications</CardTitle>
+                        <CardDescription>View and manage applications for this campaign. Use the button below to approve, reject, or manually enroll users.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <Dialog open={isManageStudentsOpen} onOpenChange={setIsManageStudentsOpen}>
                             <DialogTrigger asChild>
-                                <Button className="w-full justify-start" variant="outline"><Users2 className="w-4 h-4 mr-2"/> Manage Students & Applications</Button>
+                                <Button className="w-full justify-start" variant="default"><Users2 className="w-4 h-4 mr-2"/> Manage Students & Applications Dialog</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                                 <ManageStudentsDialog campaignId={campaign.id} campaignName={campaign.name} setOpen={setIsManageStudentsOpen} />
                             </DialogContent>
                         </Dialog>
+                        
+                        <Separator />
+
+                        <h4 className="font-semibold text-md text-muted-foreground">Submitted Applications ({applicationsList.length})</h4>
+                        {isLoadingApplications ? (
+                            <div className="flex justify-center items-center py-10">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            </div>
+                        ) : applicationsList.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-6">No applications submitted for this campaign yet.</p>
+                        ) : (
+                            <ScrollArea className="h-[400px] pr-3">
+                                <div className="space-y-3">
+                                    {applicationsList.map(app => (
+                                        <ApplicationListItem key={app.id} application={app} />
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )}
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -187,3 +254,6 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     </div>
   );
 }
+
+
+    
