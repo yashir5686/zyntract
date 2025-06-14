@@ -510,3 +510,4 @@ export const seedDailyChallenge = async () => {
     console.log('Dummy daily challenge for today seeded.');
   }
 };
+
