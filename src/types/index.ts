@@ -1,3 +1,4 @@
+
 import type { User as FirebaseUser } from 'firebase/auth';
 
 export interface UserProfile {
@@ -5,9 +6,14 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  username: string | null; // Added: Unique username
+  phoneNumber?: string | null; // Added: Optional phone number
   dailyChallengeStreak?: number;
   points?: number;
   isAdmin?: boolean;
+  createdAt?: any; // To store server timestamp
+  lastLogin?: any; // To store server timestamp
+  profileCompleted?: boolean; // To track if profile completion step is done
 }
 
 export interface Campaign {

@@ -1,41 +1,55 @@
-import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  type UserCredential
+} from 'firebase/auth';
 import { auth, db } from './config';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/types';
 
-const provider = new GoogleAuthProvider();
-
-export const signInWithGoogle = async (): Promise<UserProfile | null> => {
+export const signUpWithEmailPassword = async (email: string, password: string): Promise<UserCredential> => {
   try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-    if (user) {
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      let userProfileData: UserProfile;
-
-      if (userSnap.exists()) {
-        userProfileData = userSnap.data() as UserProfile;
-      } else {
-        userProfileData = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          dailyChallengeStreak: 0,
-          points: 0,
-          isAdmin: false, // Default new users are not admins
-        };
-        await setDoc(userRef, { ...userProfileData, createdAt: serverTimestamp(), lastLogin: serverTimestamp() });
-      }
-      return userProfileData;
-    }
-    return null;
+    // Create a basic user profile document. More details will be added after profile completion.
+    const userRef = doc(db, 'users', user.uid);
+    const initialProfile: UserProfile = {
+      uid: user.uid,
+      email: user.email,
+      displayName: null, // Will be set in complete profile step
+      photoURL: null, // No custom pics for now
+      username: null, // Will be set in complete profile step
+      phoneNumber: null, // Will be set in complete profile step
+      dailyChallengeStreak: 0,
+      points: 0,
+      isAdmin: false,
+      profileCompleted: false,
+      createdAt: serverTimestamp(),
+      lastLogin: serverTimestamp(),
+    };
+    await setDoc(userRef, initialProfile);
+    return userCredential;
   } catch (error) {
-    console.error("Error signing in with Google: ", error);
-    throw error; // Re-throw to be caught by UI
+    console.error("Error signing up with email and password: ", error);
+    throw error;
+  }
+};
+
+export const signInWithEmailPassword = async (email: string, password: string): Promise<UserCredential> => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // Update lastLogin timestamp
+    const userRef = doc(db, 'users', userCredential.user.uid);
+    await updateDoc(userRef, {
+      lastLogin: serverTimestamp()
+    });
+    return userCredential;
+  } catch (error) {
+    console.error("Error signing in with email and password: ", error);
+    throw error;
   }
 };
 

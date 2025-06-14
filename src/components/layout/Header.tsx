@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { signInWithGoogle, signOut } from '@/lib/firebase/auth';
+import { signOut } from '@/lib/firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogIn, LogOut, User, LayoutDashboard, Puzzle, HomeIcon } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, LayoutDashboard, Puzzle, HomeIcon, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -22,15 +22,6 @@ export default function Header() {
   const { user, userProfile, loading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-
-  const handleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-      toast({ title: 'Signed In', description: 'Welcome back!' });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Sign In Failed', description: (error as Error).message });
-    }
-  };
 
   const handleSignOut = async () => {
     try {
@@ -40,6 +31,11 @@ export default function Header() {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Sign Out Failed', description: (error as Error).message });
     }
+  };
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
 
   return (
@@ -55,15 +51,15 @@ export default function Header() {
             className="h-8 w-8 text-primary mr-2"
           >
             <polygon
-              points="21,12 16.5,19.794 7.5,19.794 3,12 7.5,4.206 16.5,4.206"
+              points="12,2 19.82,6.5 19.82,15.5 12,20 4.18,15.5 4.18,6.5"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.5"
               fill="none"
               strokeLinejoin="round"
             />
             <text
               x="12"
-              y="12.3"
+              y="12.5" 
               fontFamily="Space Grotesk, sans-serif"
               fontSize="11"
               fontWeight="bold"
@@ -87,7 +83,7 @@ export default function Header() {
             Daily Challenge
           </Link>
         </nav>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           {loading ? (
             <Button variant="outline" disabled className="w-24 h-10 animate-pulse bg-muted"></Button>
           ) : user && userProfile ? (
@@ -95,15 +91,19 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={userProfile.photoURL || undefined} alt={userProfile.displayName || 'User'} />
-                    <AvatarFallback>{userProfile.displayName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                    {userProfile.photoURL ? (
+                      <AvatarImage src={userProfile.photoURL} alt={userProfile.displayName || 'User'} />
+                    ) : (
+                       <UserCircle className="h-10 w-10 text-muted-foreground" />
+                    )}
+                    <AvatarFallback>{getInitials(userProfile.displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{userProfile.displayName}</p>
+                    <p className="text-sm font-medium leading-none">{userProfile.displayName || userProfile.username || 'User'}</p>
                     <p className="text-xs leading-none text-muted-foreground">{userProfile.email}</p>
                   </div>
                 </DropdownMenuLabel>
@@ -116,6 +116,12 @@ export default function Header() {
                   <Puzzle className="mr-2 h-4 w-4" />
                   <span>Daily Challenge</span>
                 </DropdownMenuItem>
+                {!userProfile.profileCompleted && (
+                  <DropdownMenuItem onClick={() => router.push('/complete-profile')}>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    <span>Complete Profile</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -124,13 +130,17 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={handleSignIn} variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <LogIn className="mr-2 h-4 w-4" /> Sign In with Google
-            </Button>
+            <>
+              <Button onClick={() => router.push('/signin')} variant="ghost">
+                <LogIn className="mr-2 h-4 w-4" /> Sign In
+              </Button>
+              <Button onClick={() => router.push('/signup')} variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+              </Button>
+            </>
           )}
         </div>
       </div>
-       {/* Mobile Navigation (placeholder, could be enhanced with a Sheet component) */}
       <div className="md:hidden flex justify-around p-2 border-t border-border/40 bg-background">
         <Link href="/" className="flex flex-col items-center text-xs hover:text-primary">
           <HomeIcon className="h-5 w-5"/> Home

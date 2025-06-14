@@ -1,3 +1,4 @@
+
 import { db } from './config';
 import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution } from '@/types';
@@ -66,19 +67,14 @@ export const applyToCampaign = async (userId: string, campaignId: string, userNa
 // DAILY CHALLENGES
 export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> => {
   try {
-    // For simplicity, fetch the latest challenge. In a real app, this would be date-based.
-    // This requires challenges to have a 'date' field (YYYY-MM-DD string) or a timestamp.
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const challengesCol = collection(db, 'dailyChallenges');
     const q = query(challengesCol, where('date', '==', today), limit(1));
-    // As a fallback if no challenge for 'today', get the most recent one.
-    // const q = query(challengesCol, orderBy('date', 'desc'), limit(1));
     const challengeSnapshot = await getDocs(q);
     if (!challengeSnapshot.empty) {
       const docData = challengeSnapshot.docs[0];
       return { id: docData.id, ...docData.data() } as DailyChallenge;
     }
-    // Fallback: If no challenge for today, try to get the most recent one.
     const fallbackQuery = query(challengesCol, orderBy('date', 'desc'), limit(1));
     const fallbackSnapshot = await getDocs(fallbackQuery);
     if (!fallbackSnapshot.empty) {
@@ -101,19 +97,21 @@ export const submitChallengeSolution = async (userId: string, challengeId: strin
       solution,
       submittedAt: new Date(),
     };
-    // This would typically involve a Firebase Function to evaluate the solution and award points.
-    // For now, just save the submission.
-    const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`); // Composite ID or subcollection
+    const submissionRef = doc(db, `userSubmissions/${userId}_${challengeId}`); 
     await setDoc(submissionRef, { ...userSolutionData, submittedAtTimestamp: serverTimestamp() });
 
-    // Placeholder: award points and update streak (this logic should be in a backend function)
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      points: ((await getDoc(userRef)).data()?.points || 0) + 10, // Example: 10 points
-      dailyChallengeStreak: ((await getDoc(userRef)).data()?.dailyChallengeStreak || 0) + 1,
-    });
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+        const currentPoints = userSnap.data()?.points || 0;
+        const currentStreak = userSnap.data()?.dailyChallengeStreak || 0;
+        await updateDoc(userRef, {
+            points: currentPoints + 10, 
+            dailyChallengeStreak: currentStreak + 1,
+        });
+    }
     
-    return { ...userSolutionData, pointsAwarded: 10 }; // Return with dummy points
+    return { ...userSolutionData, pointsAwarded: 10 };
   } catch (error) {
     console.error("Error submitting challenge solution: ", error);
     throw error;
@@ -135,6 +133,33 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   }
 };
 
+export const checkUsernameExists = async (username: string): Promise<boolean> => {
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('username', '==', username.toLowerCase()));
+    const querySnapshot = await getDocs(q);
+    return !querySnapshot.empty;
+  } catch (error) {
+    console.error("Error checking username: ", error);
+    // Default to true to prevent accidental overwrite if DB error
+    return true; 
+  }
+};
+
+export const updateUserProfile = async (userId: string, data: Partial<UserProfile>): Promise<void> => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      ...data,
+      profileCompleted: true, // Mark profile as completed
+    });
+  } catch (error) {
+    console.error("Error updating user profile: ", error);
+    throw error;
+  }
+};
+
+
 // Helper to create some dummy campaigns if the collection is empty
 export const seedCampaigns = async () => {
   const campaignsCol = collection(db, 'campaigns');
@@ -144,8 +169,8 @@ export const seedCampaigns = async () => {
       {
         name: 'Web Dev Bootcamp',
         description: 'Master full-stack web development with React, Node.js, and Firebase.',
-        startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
-        endDate: new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString(), // 33 days from now
+        startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), 
+        endDate: new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString(), 
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/7DF9FF/222831?text=Web+Dev',
         requiredPoints: 0,
@@ -153,8 +178,8 @@ export const seedCampaigns = async () => {
       {
         name: 'AI Innovators Challenge',
         description: 'Dive into machine learning and build innovative AI projects.',
-        startDate: new Date().toISOString(), // Starts today
-        endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
+        startDate: new Date().toISOString(), 
+        endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), 
         status: 'ongoing',
         imageUrl: 'https://placehold.co/600x300.png/39FF14/222831?text=AI+Challenge',
         requiredPoints: 100,
@@ -162,8 +187,8 @@ export const seedCampaigns = async () => {
       {
         name: 'Mobile App Accelerator',
         description: 'Learn to build cross-platform mobile apps with Flutter.',
-        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // Started 30 days ago
-        endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // Ended yesterday
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), 
+        endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
         status: 'past',
         imageUrl: 'https://placehold.co/600x300.png/FFFFFF/222831?text=Mobile+Apps',
         requiredPoints: 50,
