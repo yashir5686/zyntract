@@ -52,20 +52,21 @@ export interface DailyChallenge {
   description: string; 
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  date: string; 
+  date: string; // YYYY-MM-DD format, used as ID in 'dailyProblems' collection
   examples: ChallengeExample[];
-  cachedAt?: string; 
+  cachedAt?: string; // ISO string, when this problem was last saved to our DB
 }
 
 export interface UserDailyChallengeSubmission {
-  id: string; 
+  id: string; // Will be the userId
   userId: string;
-  challengeId: string; 
+  challengeId: string; // The original problem ID (e.g., Leet-123)
+  dailyProblemDate: string; // The date (YYYY-MM-DD) for which this problem was assigned
   code: string;
   language: string;
-  submittedAt: string; 
+  submittedAt: string; // ISO string
   status: 'review' | 'approved' | 'rejected';
-  reviewedAt?: string | null; 
+  reviewedAt?: string | null; // ISO string
   adminNotes?: string | null;
 }
 
@@ -127,3 +128,4 @@ export interface UserCourseCertificate {
   reviewedAt?: string | null; 
   adminNotes?: string | null;
 }
+

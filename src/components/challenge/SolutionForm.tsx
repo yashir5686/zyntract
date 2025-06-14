@@ -18,10 +18,11 @@ const MonacoEditorComponent = dynamic(() => import('./MonacoEditorComponent'), {
 });
 
 interface SolutionFormProps {
-  challengeId: string;
+  challengeId: string; // Actual problem ID (e.g., Leet-123)
+  dailyProblemDate: string; // YYYY-MM-DD string for Firestore path
   userId: string;
   existingSubmission: UserDailyChallengeSubmission | null;
-  onSolutionSubmitted: (submission: UserDailyChallengeSubmission) => void; // To update parent state
+  onSolutionSubmitted: (submission: UserDailyChallengeSubmission) => void;
 }
 
 const LANGUAGES = [
@@ -33,7 +34,13 @@ const LANGUAGES = [
   { value: 'ruby', label: 'Ruby' },
 ];
 
-export default function SolutionForm({ challengeId, userId, existingSubmission, onSolutionSubmitted }: SolutionFormProps) {
+export default function SolutionForm({ 
+  challengeId, 
+  dailyProblemDate, 
+  userId, 
+  existingSubmission, 
+  onSolutionSubmitted 
+}: SolutionFormProps) {
   const [code, setCode] = useState<string>(existingSubmission?.code || '');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(existingSubmission?.language || LANGUAGES[0].value);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -45,6 +52,10 @@ export default function SolutionForm({ challengeId, userId, existingSubmission, 
     if (existingSubmission) {
       setCode(existingSubmission.code);
       setSelectedLanguage(existingSubmission.language);
+    } else {
+      // Reset if no existing submission or if challenge changes
+      setCode('');
+      setSelectedLanguage(LANGUAGES[0].value);
     }
   }, [existingSubmission]);
 
@@ -72,9 +83,16 @@ export default function SolutionForm({ challengeId, userId, existingSubmission, 
     }
     setIsSubmitting(true);
     try {
-      const submissionResult = await submitDailyChallengeSolution(userId, challengeId, code, selectedLanguage);
+      // Pass dailyProblemDate to the submission function
+      const submissionResult = await submitDailyChallengeSolution(
+        userId, 
+        dailyProblemDate, 
+        challengeId, 
+        code, 
+        selectedLanguage
+      );
       toast({ title: 'Solution Submitted!', description: 'Your solution is now under review.' });
-      onSolutionSubmitted(submissionResult); // Notify parent
+      onSolutionSubmitted(submissionResult); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || 'An unexpected error occurred.' });
     } finally {
@@ -89,7 +107,7 @@ export default function SolutionForm({ challengeId, userId, existingSubmission, 
       case 'approved':
         return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>;
       case 'rejected':
-        return <Badge variant="destructive"><Info className="w-3 h-3 mr-1" /> Rejected</Badge>; // Or XCircle
+        return <Badge variant="destructive"><Info className="w-3 h-3 mr-1" /> Rejected</Badge>; 
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -161,3 +179,4 @@ export default function SolutionForm({ challengeId, userId, existingSubmission, 
     </form>
   );
 }
+

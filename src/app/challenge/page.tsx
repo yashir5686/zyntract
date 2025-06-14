@@ -32,8 +32,9 @@ export default function DailyChallengePage() {
       setIsLoadingChallenge(false);
 
       if (currentChallenge && user) {
-        console.log("Fetching user submission for challenge:", currentChallenge.id);
-        const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.id);
+        console.log("Fetching user submission for challenge (problem ID):", currentChallenge.id, "on date:", currentChallenge.date);
+        // Use currentChallenge.date as it's the ID for the dailyProblems document
+        const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.date);
         setUserSubmission(submission);
       } else if (!currentChallenge) {
         console.log("No challenge fetched for today, skipping submission fetch.");
@@ -43,10 +44,10 @@ export default function DailyChallengePage() {
       setIsLoadingSubmission(false);
     };
 
-    if (!authLoading) { // Only fetch if auth state is resolved
+    if (!authLoading) { 
         fetchChallengeAndSubmission();
     }
-  }, [user, authLoading]); // Re-fetch if user or authLoading state changes
+  }, [user, authLoading]); 
 
   useEffect(() => {
     if (user) {
@@ -55,13 +56,9 @@ export default function DailyChallengePage() {
   }, [user, userProfile]);
 
   const handleSolutionSubmitted = (submission: UserDailyChallengeSubmission) => {
-    setUserSubmission(submission); // Update local state to reflect new submission
-    // Points/streak update will be handled by admin approval later.
-    // Optionally, refresh user profile if submitting affects something immediately (not currently the case)
-    // if (user) {
-    //   const updatedProfile = await getUserProfile(user.uid);
-    //   setCurrentUserProfile(updatedProfile);
-    // }
+    setUserSubmission(submission); 
+    // Optionally, refresh user profile if submitting affects something immediately
+    // For now, points/streak updates are handled by admin approval.
   };
 
   if (authLoading) {
@@ -99,7 +96,8 @@ export default function DailyChallengePage() {
             <>
               <ChallengeDisplay challenge={challenge} />
               <SolutionForm
-                challengeId={challenge.id} 
+                challengeId={challenge.id} // This is the actual problem ID (e.g., Leet-123)
+                dailyProblemDate={challenge.date} // This is YYYY-MM-DD for Firestore path
                 userId={user.uid}
                 existingSubmission={userSubmission}
                 onSolutionSubmitted={handleSolutionSubmitted}
@@ -154,12 +152,12 @@ const ChallengePageSkeleton = () => (
   <div className="flex flex-col lg:flex-row gap-8">
     <div className="lg:w-2/3">
       <Skeleton className="h-10 w-1/2 mb-6" />
-      <ChallengeSkeleton /> {/* This contains the problem display skeleton */}
+      <ChallengeSkeleton /> 
       <div className="mt-8 space-y-4">
-        <Skeleton className="h-10 w-1/3 mb-2" /> {/* Title Placeholder for editor area */}
-        <Skeleton className="h-10 w-1/4 mb-2" /> {/* Language Selector Placeholder */}
-        <Skeleton className="h-[300px] w-full" /> {/* Editor Placeholder */}
-        <Skeleton className="h-10 w-48" /> {/* Submit Button Placeholder */}
+        <Skeleton className="h-10 w-1/3 mb-2" /> 
+        <Skeleton className="h-10 w-1/4 mb-2" /> 
+        <Skeleton className="h-[300px] w-full" /> 
+        <Skeleton className="h-10 w-48" /> 
       </div>
     </div>
     <aside className="lg:w-1/3 space-y-6">
@@ -204,3 +202,4 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-12 w-full" />
   </div>
 );
+
