@@ -11,8 +11,8 @@ export interface UserProfile {
   dailyChallengeStreak?: number;
   points?: number;
   isAdmin?: boolean;
-  createdAt?: string | null; // ISO date string from Firestore Timestamp
-  lastLogin?: string | null; // ISO date string from Firestore Timestamp
+  createdAt?: string | null; 
+  lastLogin?: string | null; 
   profileCompleted?: boolean; 
 }
 
@@ -20,68 +20,76 @@ export interface Campaign {
   id: string;
   name: string;
   description: string;
-  startDate: string; // ISO date string
-  endDate: string; // ISO date string
+  startDate: string; 
+  endDate: string; 
   status: 'ongoing' | 'upcoming' | 'past';
   imageUrl?: string;
   requiredPoints?: number;
   applyLink?: string;
-  createdAt?: string; // ISO date string from Firestore Timestamp
+  createdAt?: string; 
 }
 
 export interface CampaignApplication {
-  id: string; // Firestore document ID
+  id: string; 
   userId: string;
   campaignId: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedAt: string; // ISO date string from Firestore Timestamp
+  appliedAt: string; 
   userName?: string;
   userEmail?: string;
   campaignName?: string;
 }
 
+export interface ChallengeExample {
+  input: string;
+  output: string;
+  explanation?: string;
+}
+
 export interface DailyChallenge {
   id: string;
   title: string;
-  description: string;
+  description: string; // HTML content
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  date: string; // ISO date string for when this challenge is active
+  date: string; 
+  examples: ChallengeExample[];
 }
 
 export interface UserSolution {
   challengeId: string;
   userId: string;
-  solution: string;
-  submittedAt: string; // ISO date string from Firestore Timestamp
+  solution: string; // Can be code or text description
+  language?: string; // Optional language if it's code
+  submittedAt: string; 
   pointsAwarded?: number;
 }
 
 // New types for campaign content
 export interface Course {
-  id: string; // Firestore document ID
+  id: string; 
   campaignId: string;
   title: string;
   description: string;
   courseUrl: string; 
   resources?: Array<{ name: string; url: string }>;
-  createdAt: string; // ISO date string from Firestore Timestamp
+  createdAt: string; 
 }
 
 export interface Project {
-  id: string; // Firestore document ID
+  id: string; 
   campaignId: string;
   title: string;
   description: string;
   submissionLinkRequired?: boolean;
   learningObjectives?: string[];
-  createdAt: string; // ISO date string from Firestore Timestamp
+  createdAt: string; 
 }
 
 export interface QuizQuestion {
   question: string;
   options: string[];
-  correctAnswer: string; // Could be an index or the string itself
+  correctAnswer: string; 
 }
 
 export interface CodingTestCase {
@@ -90,20 +98,20 @@ export interface CodingTestCase {
 }
 
 export interface QuizChallenge {
-  id: string; // Firestore document ID
+  id: string; 
   campaignId: string;
   title: string;
   description: string;
   type: 'quiz' | 'coding_problem';
   points: number;
-  questions?: QuizQuestion[]; // For type 'quiz'
-  codingPrompt?: string; // For type 'coding_problem'
-  testCases?: CodingTestCase[]; // For type 'coding_problem'
-  createdAt: string; // ISO date string from Firestore Timestamp
+  questions?: QuizQuestion[]; 
+  codingPrompt?: string; 
+  testCases?: CodingTestCase[]; 
+  createdAt: string; 
 }
 
 export interface UserCourseCertificate {
-  id: string; // Firestore document ID
+  id: string; 
   userId: string;
   campaignId: string;
   courseId: string;
@@ -111,8 +119,7 @@ export interface UserCourseCertificate {
   userEmail?: string; 
   certificateUrl: string;
   status: 'review' | 'approved' | 'rejected';
-  submittedAt: string; // ISO date string from Firestore Timestamp
-  reviewedAt?: string | null; // ISO date string from Firestore Timestamp
+  submittedAt: string; 
+  reviewedAt?: string | null; 
   adminNotes?: string | null;
 }
-

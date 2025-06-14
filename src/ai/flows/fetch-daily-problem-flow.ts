@@ -7,7 +7,7 @@
  * - DailyChallengeOutput - The return type (reusing existing DailyChallenge type from @/types).
  */
 
-import type { DailyChallenge } from '@/types';
+import type { DailyChallenge, ChallengeExample } from '@/types';
 
 interface LeetCodeProblemDetail {
   questionId: string;
@@ -45,6 +45,54 @@ const getPointsForDifficulty = (difficulty: 'easy' | 'medium' | 'hard'): number 
     default: return 10;
   }
 };
+
+const parseExamplesFromHtml = (htmlContent: string): ChallengeExample[] => {
+  const examples: ChallengeExample[] = [];
+  if (!htmlContent || typeof htmlContent !== 'string') {
+    return examples;
+  }
+
+  try {
+    const exampleRegex = /<strong class="example">Example \d+:<\/strong>.*?<pre>(.*?)<\/pre>/gs;
+    let match;
+    while ((match = exampleRegex.exec(htmlContent)) !== null) {
+      const preContent = match[1];
+      let input = '';
+      let output = '';
+      let explanation = '';
+
+      const inputMatch = preContent.match(/<strong>Input:<\/strong>\s*(.*?)(?=\n<strong>Output:<\/strong>|<\/pre>)/is);
+      if (inputMatch) {
+        input = inputMatch[1].replace(/<[^>]+>/g, '').trim(); // Strip HTML tags and trim
+      }
+
+      const outputMatch = preContent.match(/<strong>Output:<\/strong>\s*(.*?)(?=\n<strong>Explanation:<\/strong>|<\/pre>)/is);
+      if (outputMatch) {
+        output = outputMatch[1].replace(/<[^>]+>/g, '').trim();
+      }
+      
+      const explanationMatch = preContent.match(/<strong>Explanation:<\/strong>\s*(.*?)(?=\n<\/pre>|<\/pre>)/is);
+      if (explanationMatch) {
+        explanation = explanationMatch[1].replace(/<[^>]+>/g, '').trim();
+      }
+      
+      // Fallback if explanation is not explicitly tagged but output is
+      if (!output && input && preContent.includes('Output:')) {
+        const genericOutputMatch = preContent.substring(preContent.indexOf('Output:') + 'Output:'.length).match(/\s*(.*?)(?=\n<strong>Explanation:<\/strong>|<\/pre>)/is);
+        if(genericOutputMatch) output = genericOutputMatch[1].replace(/<[^>]+>/g, '').trim();
+      }
+
+
+      if (input && output) {
+        examples.push({ input, output, explanation: explanation || undefined });
+      }
+    }
+  } catch (error) {
+    console.error("[parseExamplesFromHtml] Error parsing examples:", error);
+  }
+  return examples;
+};
+
 
 export async function fetchDailyProgrammingProblem(): Promise<DailyChallenge | null> {
   console.log('[fetchDailyProgrammingProblem] Initiating problem fetch from GitHub JSON...');
@@ -85,14 +133,15 @@ export async function fetchDailyProgrammingProblem(): Promise<DailyChallenge | n
     const problem = suitableProblems[randomIndex];
     console.log(`[fetchDailyProgrammingProblem] Randomly selected problem index: ${randomIndex}, ID: ${problem?.questionId}, Title: ${problem?.title}`);
 
-    if (!problem) { // Should not happen if suitableProblems has items, but as a safeguard.
-        console.error('[fetchDailyProgrammingProblem] Randomly selected problem is undefined or null.');
+    if (!problem || !problem.title || !problem.content || !problem.difficulty) { 
+        console.error('[fetchDailyProgrammingProblem] Randomly selected problem is undefined, null, or missing critical fields (title, content, difficulty). Problem:', problem);
         return null;
     }
 
     const difficulty = mapApiDifficultyToEnum(problem.difficulty);
     const points = getPointsForDifficulty(difficulty);
     const problemId = `Leet-${problem.questionId}`;
+    const examples = parseExamplesFromHtml(problem.content);
 
     const challengeResult: DailyChallenge = {
       id: problemId,
@@ -101,8 +150,9 @@ export async function fetchDailyProgrammingProblem(): Promise<DailyChallenge | n
       difficulty: difficulty,
       points: points,
       date: new Date().toISOString().split('T')[0], // Current date
+      examples,
     };
-    console.log('[fetchDailyProgrammingProblem] Successfully formatted challenge:', challengeResult.id);
+    console.log('[fetchDailyProgrammingProblem] Successfully formatted challenge:', challengeResult.id, 'with', examples.length, 'examples.');
     return challengeResult;
 
   } catch (error) {

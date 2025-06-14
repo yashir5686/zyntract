@@ -4,8 +4,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/firebase/firestore'; 
-import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow'; // Updated import
-import type { DailyChallenge, UserProfile } from '@/types';
+import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
+import type { DailyChallenge, UserProfile, ChallengeExample } from '@/types'; // Added ChallengeExample
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ export default function DailyChallengePage() {
       console.log("Fetching daily programming problem for challenge page...");
       const currentChallenge = await fetchDailyProgrammingProblem(); 
       if (currentChallenge) {
-        console.log("Challenge fetched:", currentChallenge.id, currentChallenge.title);
+        console.log("Challenge fetched:", currentChallenge.id, currentChallenge.title, "with", currentChallenge.examples.length, "examples.");
       } else {
         console.log("No challenge fetched for today.");
       }
@@ -43,6 +43,8 @@ export default function DailyChallengePage() {
 
   const handleSolutionSuccess = async (pointsAwarded: number) => {
     if (user) {
+      // User stats (points, streak) are typically updated server-side by the real submission evaluation function.
+      // For this mock, we can refresh the profile to see if points changed.
       const updatedProfile = await getUserProfile(user.uid);
       setCurrentUserProfile(updatedProfile);
     }
@@ -83,6 +85,7 @@ export default function DailyChallengePage() {
               <SolutionForm
                 challengeId={challenge.id} 
                 userId={user.uid}
+                examples={challenge.examples} // Pass examples here
                 onSubmitSuccess={handleSolutionSuccess}
               />
             </>
@@ -118,10 +121,11 @@ export default function DailyChallengePage() {
           <div className="p-6 bg-card rounded-lg shadow-md">
              <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new programming challenge appears daily from a public LeetCode-style dataset.</li>
+                <li>A new programming challenge appears daily from a LeetCode-style dataset.</li>
                 <li>The full problem description, including examples, is displayed.</li>
-                <li>Submit your solution approach or code snippet here to earn points (evaluation is simulated).</li>
-                <li>Maintain your daily streak for bonus rewards (coming soon!).</li>
+                <li>Select your programming language and write your code in the editor below.</li>
+                <li>Use the "Run Tests" button to check your code against the provided examples (mock testing).</li>
+                <li>Submit your final code to earn points (evaluation is currently mocked).</li>
              </ul>
           </div>
         </aside>
@@ -135,10 +139,13 @@ const ChallengePageSkeleton = () => (
     <div className="lg:w-2/3">
       <Skeleton className="h-10 w-1/2 mb-6" />
       <ChallengeSkeleton />
-      <div className="mt-6 space-y-4">
-        <Skeleton className="h-6 w-1/4 mb-1" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-10 w-1/3" />
+      <div className="mt-8 space-y-4">
+        <Skeleton className="h-10 w-1/3 mb-2" /> {/* Language Selector Placeholder */}
+        <Skeleton className="h-48 w-full" /> {/* Code Editor Placeholder */}
+        <div className="flex gap-4">
+          <Skeleton className="h-10 w-28" /> {/* Run Tests Button Placeholder */}
+          <Skeleton className="h-10 w-32" /> {/* Submit Button Placeholder */}
+        </div>
       </div>
     </div>
     <aside className="lg:w-1/3 space-y-6">
@@ -174,8 +181,14 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-5/6 mb-2" />
+    {/* More lines for problem description */}
+    <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-full mb-2" />
     <Skeleton className="h-4 w-2/3" />
+     {/* Placeholders for examples */}
+    <Skeleton className="h-6 w-1/4 mt-4 mb-2" /> 
+    <Skeleton className="h-12 w-full" />
+    <Skeleton className="h-6 w-1/4 mt-4 mb-2" />
+    <Skeleton className="h-12 w-full" />
   </div>
 );
-
