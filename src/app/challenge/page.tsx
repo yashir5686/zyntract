@@ -10,16 +10,26 @@ import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Zap, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { Zap, TrendingUp, AlertCircle, Loader2, Eye, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function DailyChallengePage() {
-  const { user, userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading, isAdmin } = useAuth();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(userProfile);
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
   const [userSubmission, setUserSubmission] = useState<UserDailyChallengeSubmission | null>(null);
   const [isLoadingSubmission, setIsLoadingSubmission] = useState(true);
+  const [currentViewMode, setCurrentViewMode] = useState<'admin' | 'user'>('user');
+
+  useEffect(() => {
+    if (isAdmin) {
+      setCurrentViewMode('admin');
+    } else {
+      setCurrentViewMode('user');
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     const fetchChallengeAndSubmission = async () => {
@@ -33,7 +43,6 @@ export default function DailyChallengePage() {
 
       if (currentChallenge && user) {
         console.log("Fetching user submission for challenge (problem ID):", currentChallenge.id, "on date:", currentChallenge.date);
-        // Use currentChallenge.date as it's the ID for the dailyProblems document
         const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.date);
         setUserSubmission(submission);
       } else if (!currentChallenge) {
@@ -57,8 +66,12 @@ export default function DailyChallengePage() {
 
   const handleSolutionSubmitted = (submission: UserDailyChallengeSubmission) => {
     setUserSubmission(submission); 
-    // Optionally, refresh user profile if submitting affects something immediately
-    // For now, points/streak updates are handled by admin approval.
+  };
+
+  const handleToggleView = () => {
+    if (isAdmin) {
+      setCurrentViewMode(prevMode => (prevMode === 'admin' ? 'user' : 'admin'));
+    }
   };
 
   if (authLoading) {
@@ -69,7 +82,7 @@ export default function DailyChallengePage() {
     );
   }
 
-  if (!user) {
+  if (!user && currentViewMode === 'user') { // Only gate user view if not logged in
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">Access Denied</h1>
@@ -83,26 +96,31 @@ export default function DailyChallengePage() {
     );
   }
   
-  const displayLoading = isLoadingChallenge || (challenge && user && isLoadingSubmission);
+  const displayLoading = isLoadingChallenge || (challenge && user && isLoadingSubmission && currentViewMode === 'user');
+  const showAdminView = isAdmin && currentViewMode === 'admin';
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="lg:w-2/3">
-          <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge</h1>
-          {displayLoading ? (
+      {isAdmin && (
+        <div className="mb-6 flex justify-end">
+          <Button onClick={handleToggleView} variant="outline" size="sm">
+            {currentViewMode === 'admin' ? (
+              <><Eye className="mr-2 h-4 w-4" /> View as User</>
+            ) : (
+              <><ShieldCheck className="mr-2 h-4 w-4" /> Switch to Admin View</>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {showAdminView ? (
+        // Admin View
+        <>
+          <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge (Admin Panel)</h1>
+          {isLoadingChallenge ? ( // Admin view also needs to load the challenge to display it
             <ChallengeSkeleton />
           ) : challenge ? (
-            <>
-              <ChallengeDisplay challenge={challenge} />
-              <SolutionForm
-                challengeId={challenge.id} // This is the actual problem ID (e.g., Leet-123)
-                dailyProblemDate={challenge.date} // This is YYYY-MM-DD for Firestore path
-                userId={user.uid}
-                existingSubmission={userSubmission}
-                onSolutionSubmitted={handleSolutionSubmitted}
-              />
-            </>
+            <ChallengeDisplay challenge={challenge} />
           ) : (
             <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -110,40 +128,79 @@ export default function DailyChallengePage() {
               <p className="text-muted-foreground">Could not fetch a programming challenge. Please try again later!</p>
             </div>
           )}
-        </div>
-        <aside className="lg:w-1/3 space-y-6">
-          <div className="p-6 bg-card rounded-lg shadow-md">
-            <h3 className="font-headline text-xl font-semibold mb-4">Your Stats</h3>
-            {currentUserProfile ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center"><Zap className="w-5 h-5 mr-2 text-primary" /> Total Points:</span>
-                  <span className="font-bold text-lg text-primary">{currentUserProfile.points ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-accent" /> Daily Streak:</span>
-                  <span className="font-bold text-lg text-accent">{currentUserProfile.dailyChallengeStreak ?? 0}</span>
-                </div>
-              </div>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="font-headline text-xl">Admin Controls</CardTitle>
+              <CardDescription>Manage daily challenges and review submissions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Admin panel for daily challenge submissions and management (e.g., view all submissions for today, edit current problem, manually set problem) coming soon.</p>
+              {/* Potential future components: <AllSubmissionsList challengeId={challenge?.id} /> <EditDailyProblemForm problem={challenge} /> */}
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        // User View
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="lg:w-2/3">
+            <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge</h1>
+            {displayLoading ? (
+              <ChallengeSkeleton />
+            ) : challenge ? (
+              <>
+                <ChallengeDisplay challenge={challenge} />
+                {user && ( // Ensure user is loaded before showing solution form
+                   <SolutionForm
+                      challengeId={challenge.id} 
+                      dailyProblemDate={challenge.date} 
+                      userId={user.uid}
+                      existingSubmission={userSubmission}
+                      onSolutionSubmitted={handleSolutionSubmitted}
+                    />
+                )}
+              </>
             ) : (
-              <div className="space-y-3">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-6 w-1/2" />
+              <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
+                <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h2 className="font-headline text-2xl mb-2">No Challenge Today</h2>
+                <p className="text-muted-foreground">Could not fetch a programming challenge. Please try again later!</p>
               </div>
             )}
           </div>
-          <div className="p-6 bg-card rounded-lg shadow-md">
-             <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
-             <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new programming challenge appears daily.</li>
-                <li>Problem description and examples are displayed.</li>
-                <li>Use the integrated code editor to write your solution and select your language.</li>
-                <li>Submit your solution for review. You can only submit once per challenge.</li>
-                <li>Admins will review submissions. Points and streaks are updated upon approval.</li>
-             </ul>
-          </div>
-        </aside>
-      </div>
+          <aside className="lg:w-1/3 space-y-6">
+            <div className="p-6 bg-card rounded-lg shadow-md">
+              <h3 className="font-headline text-xl font-semibold mb-4">Your Stats</h3>
+              {currentUserProfile ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center"><Zap className="w-5 h-5 mr-2 text-primary" /> Total Points:</span>
+                    <span className="font-bold text-lg text-primary">{currentUserProfile.points ?? 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center"><TrendingUp className="w-5 h-5 mr-2 text-accent" /> Daily Streak:</span>
+                    <span className="font-bold text-lg text-accent">{currentUserProfile.dailyChallengeStreak ?? 0}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-6 w-1/2" />
+                </div>
+              )}
+            </div>
+            <div className="p-6 bg-card rounded-lg shadow-md">
+               <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
+               <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
+                  <li>A new programming challenge appears daily.</li>
+                  <li>Problem description and examples are displayed.</li>
+                  <li>Use the integrated code editor to write your solution and select your language.</li>
+                  <li>Submit your solution for review. You can only submit once per challenge.</li>
+                  <li>Admins will review submissions. Points and streaks are updated upon approval.</li>
+               </ul>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -202,4 +259,3 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-12 w-full" />
   </div>
 );
-
