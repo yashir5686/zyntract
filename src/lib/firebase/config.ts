@@ -1,7 +1,8 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
+
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCFDBrQec-IcoXWjFDX_tXAX_pD3dn4NNM",
@@ -13,24 +14,17 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
 
-if (typeof window !== 'undefined' && !getApps().length) {
+// Initialize Firebase App
+if (!getApps().length) {
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-} else if (typeof window !== 'undefined') {
-  app = getApp();
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
 } else {
-  // Handle server-side initialization if needed, though most Firebase client SDKs are client-side.
-  // For Server Components or API routes, you'd use Firebase Admin SDK.
-  // This client-side setup is primarily for browser interactions.
+  app = getApp();
 }
+
+// Get Firebase services
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
 
 export { app, auth, db, storage };
