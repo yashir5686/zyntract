@@ -139,8 +139,9 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
           <Image
             src={campaign.imageUrl}
             alt={campaign.name}
-            layout="fill"
-            objectFit="cover"
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+            style={{ objectFit: 'cover' }}
             data-ai-hint="technology abstract"
           />
         </div>
@@ -176,4 +177,3 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
     </Card>
   );
 }
-

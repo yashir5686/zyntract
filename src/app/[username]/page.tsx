@@ -135,7 +135,14 @@ const CampaignListItem = ({ application, campaign }: CampaignListItemProps) => {
       <div className="flex flex-col sm:flex-row">
         {campaign.imageUrl && (
           <div className="sm:w-1/3 relative h-32 sm:h-auto">
-             <Image src={campaign.imageUrl} alt={campaign.name} layout="fill" objectFit="cover" data-ai-hint="technology abstract" />
+             <Image
+                src={campaign.imageUrl}
+                alt={campaign.name}
+                fill
+                sizes="(min-width: 640px) 256px, 100vw"
+                style={{ objectFit: 'cover' }}
+                data-ai-hint="technology abstract"
+              />
           </div>
         )}
         <div className={`p-4 ${campaign.imageUrl ? 'sm:w-2/3' : 'w-full'}`}>
