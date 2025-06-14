@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogIn, LogOut, UserPlus, LayoutDashboard, Puzzle, HomeIcon, UserCircle } from 'lucide-react';
+import { LogIn, LogOut, UserPlus, LayoutDashboard, Puzzle, HomeIcon, UserCircle, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -108,6 +108,12 @@ export default function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {userProfile.username && (
+                  <DropdownMenuItem onClick={() => router.push(`/${userProfile.username}`)}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>My Profile</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   <span>Dashboard</span>
