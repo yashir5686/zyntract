@@ -65,7 +65,7 @@ export interface Course {
   campaignId: string;
   title: string;
   description: string;
-  videoUrl?: string;
+  courseUrl: string; // Changed from videoUrl, made mandatory
   resources?: Array<{ name: string; url: string }>;
   createdAt: string; // ISO date string
 }
@@ -103,3 +103,4 @@ export interface QuizChallenge {
   testCases?: CodingTestCase[]; // For type 'coding_problem'
   createdAt: string; // ISO date string
 }
+

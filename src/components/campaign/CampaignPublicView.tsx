@@ -5,7 +5,7 @@ import type { Campaign, CampaignApplication, Course, Project, QuizChallenge } fr
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, Video, FileText, HelpCircle, FileBadge } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -19,7 +19,7 @@ interface CampaignPublicViewProps {
   campaign: Campaign;
 }
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 };
@@ -52,13 +52,11 @@ const CourseItemCard = ({ course }: CourseItemProps) => {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{course.description}</p>
-        {course.videoUrl && (
-          <Button asChild variant="link" className="p-0 h-auto text-primary">
-            <a href={course.videoUrl} target="_blank" rel="noopener noreferrer">
-              <Video className="w-4 h-4 mr-1" /> Watch Video
-            </a>
-          </Button>
-        )}
+        <Button asChild variant="link" className="p-0 h-auto text-primary hover:text-primary/80">
+          <a href={course.courseUrl} target="_blank" rel="noopener noreferrer">
+            <LinkIcon className="w-4 h-4 mr-1" /> View Course
+          </a>
+        </Button>
       </CardContent>
     </Card>
   );

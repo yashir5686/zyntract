@@ -13,7 +13,7 @@ import { DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
 import { useToast } from '@/hooks/use-toast';
 import { addCourseToCampaign, getCoursesForCampaign } from '@/lib/firebase/firestore';
 import type { Course } from '@/types';
-import { PlusCircle, BookOpen, Loader2 } from 'lucide-react';
+import { PlusCircle, BookOpen, Loader2, LinkIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -25,8 +25,7 @@ interface ManageCoursesDialogProps {
 const courseSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(100),
   description: z.string().min(10, 'Description must be at least 10 characters').max(5000),
-  videoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  // We can add resources later if needed
+  courseUrl: z.string().url('Must be a valid URL for the course.'),
 });
 
 type CourseFormValues = z.infer<typeof courseSchema>;
@@ -42,7 +41,7 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     defaultValues: {
       title: '',
       description: '',
-      videoUrl: '',
+      courseUrl: '',
     },
   });
 
@@ -60,6 +59,7 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
 
   useEffect(() => {
     fetchCourses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
   const onSubmit = async (data: CourseFormValues) => {
@@ -96,7 +96,7 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Course Title</FormLabel>
-                    <FormControl><Input placeholder="e.g., Introduction to React" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Advanced JavaScript Techniques" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -107,18 +107,21 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Description</FormLabel>
-                    <FormControl><Textarea placeholder="Brief overview of the course content..." {...field} rows={3} /></FormControl>
+                    <FormControl><Textarea placeholder="Detailed overview of what the course covers..." {...field} rows={3} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="videoUrl"
+                name="courseUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Video URL (Optional)</FormLabel>
-                    <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} /></FormControl>
+                    <FormLabel>Course URL</FormLabel>
+                    <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <FormControl><Input placeholder="https://yoursite.com/course-link" {...field} className="pl-10" /></FormControl>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -148,12 +151,10 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
                                     <CardTitle className="text-md font-semibold">{course.title}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-3 pt-0 text-xs text-muted-foreground">
-                                    <p className="line-clamp-2">{course.description}</p>
-                                    {course.videoUrl && (
-                                        <a href={course.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs mt-1 block">
-                                            Watch Video
-                                        </a>
-                                    )}
+                                    <p className="line-clamp-2 mb-1">{course.description}</p>
+                                    <a href={course.courseUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs font-medium flex items-center">
+                                        <LinkIcon className="w-3 h-3 mr-1" /> View Course
+                                    </a>
                                      {/* Placeholder for Edit/Delete actions */}
                                 </CardContent>
                             </Card>
@@ -172,3 +173,4 @@ export default function ManageCoursesDialog({ campaignId, setOpen }: ManageCours
     </>
   );
 }
+
