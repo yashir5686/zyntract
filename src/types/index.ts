@@ -25,6 +25,7 @@ export interface Campaign {
   status: 'ongoing' | 'upcoming' | 'past';
   imageUrl?: string;
   requiredPoints?: number;
+  applyLink?: string; // Added: Optional external application link
 }
 
 export interface CampaignApplication {
@@ -54,3 +55,4 @@ export interface UserSolution {
   submittedAt: Date;
   pointsAwarded?: number;
 }
+

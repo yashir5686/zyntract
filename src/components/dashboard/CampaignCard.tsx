@@ -1,8 +1,9 @@
+
 import type { Campaign, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { applyToCampaign } from '@/lib/firebase/firestore';
 import { useState } from 'react';
+import Link from 'next/link';
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -25,24 +27,25 @@ interface CampaignCardProps {
 
 export default function CampaignCard({ campaign, user, onApplySuccess }: CampaignCardProps) {
   const { toast } = useToast();
-  const [isApplying, setIsApplying] = useState(false);
+  const [isApplyingInternal, setIsApplyingInternal] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleApply = async () => {
+  const handleInternalApply = async () => {
     if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please sign in to apply for campaigns.' });
+      toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please sign in to apply.' });
       return;
     }
+    // This check is theoretically redundant if button is disabled, but good for safety
     if (campaign.status !== 'ongoing' && campaign.status !== 'upcoming') {
-      toast({ variant: 'destructive', title: 'Cannot Apply', description: 'This campaign is not currently open for applications.' });
+      toast({ variant: 'destructive', title: 'Cannot Apply', description: 'This campaign is not open for applications.' });
       return;
     }
     if (user.points === undefined || (campaign.requiredPoints || 0) > user.points) {
-       toast({ variant: 'destructive', title: 'Insufficient Points', description: `You need ${campaign.requiredPoints} points to apply for this campaign. You have ${user.points || 0}.` });
+       toast({ variant: 'destructive', title: 'Insufficient Points', description: `You need ${campaign.requiredPoints} points. You have ${user.points || 0}.` });
        return;
     }
 
-    setIsApplying(true);
+    setIsApplyingInternal(true);
     try {
       await applyToCampaign(user.uid, campaign.id, user.displayName || undefined, user.email || undefined, campaign.name);
       toast({ title: 'Application Submitted!', description: `Your application for ${campaign.name} has been sent for review.` });
@@ -51,7 +54,7 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Application Failed', description: error.message || 'Could not submit application.' });
     } finally {
-      setIsApplying(false);
+      setIsApplyingInternal(false);
     }
   };
 
@@ -69,7 +72,65 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
         return null;
     }
   };
+  
+  const isUserEligible = user && (campaign.requiredPoints || 0) <= (user.points || 0);
+  const canApply = user && (campaign.status === 'ongoing' || campaign.status === 'upcoming') && isUserEligible;
+  const cannotApplyReason = () => {
+    if (campaign.status === 'past') return 'Campaign Ended';
+    if (!user) return 'Sign in to Apply'; // Should not happen if button is disabled, but good fallback
+    if (!isUserEligible) return 'Not Enough Points';
+    return 'Apply Now'; // Default if eligible
+  };
 
+  const renderApplyButton = () => {
+    if (campaign.applyLink) {
+      return (
+        <Button
+          asChild
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+          disabled={!user || campaign.status === 'past' || !isUserEligible}
+        >
+          <a href={campaign.applyLink} target="_blank" rel="noopener noreferrer">
+            {campaign.status === 'past' ? 'Campaign Ended' : !user ? 'Sign in to Apply' : !isUserEligible ? 'Not Enough Points' : 'Apply via Link'}
+            {canApply && <ExternalLink className="ml-2 h-4 w-4" />}
+          </a>
+        </Button>
+      );
+    } else {
+      // Internal application system
+      return (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+              disabled={!user || campaign.status === 'past' || isApplyingInternal || !isUserEligible}
+            >
+              {cannotApplyReason()}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="font-headline">Apply to: {campaign.name}</DialogTitle>
+              <DialogDescription>
+                Confirm your application for this campaign. Your profile will be submitted for review.
+              </DialogDescription>
+            </DialogHeader>
+             {user && !isUserEligible && (
+                 <p className="text-destructive text-sm">You need {campaign.requiredPoints} points to apply, but you only have {user.points || 0}.</p>
+             )}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={handleInternalApply} disabled={isApplyingInternal || !isUserEligible}>
+                {isApplyingInternal ? 'Submitting...' : 'Confirm Application'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+  };
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/30 transition-all duration-300 h-full bg-card">
@@ -99,41 +160,20 @@ export default function CampaignCard({ campaign, user, onApplySuccess }: Campaig
                 Requires {campaign.requiredPoints} points
             </CardDescription>
         )}
+         {campaign.applyLink && (
+            <CardDescription className="text-xs flex items-center text-accent mt-1">
+                <ExternalLink className="w-3 h-3 mr-1"/>
+                External application
+            </CardDescription>
+        )}
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
       </CardContent>
       <CardFooter>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              disabled={!user || campaign.status === 'past' || isApplying || (campaign.requiredPoints || 0) > (user?.points || 0) }
-            >
-              { (campaign.requiredPoints || 0) > (user?.points || 0) && user ? 'Not Enough Points' : campaign.status === 'past' ? 'Campaign Ended' : 'Apply Now' }
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="font-headline">Apply to: {campaign.name}</DialogTitle>
-              <DialogDescription>
-                Confirm your application for this campaign. Your profile will be submitted for review.
-              </DialogDescription>
-            </DialogHeader>
-             {user && (campaign.requiredPoints || 0) > (user.points || 0) && (
-                 <p className="text-destructive text-sm">You need {campaign.requiredPoints} points to apply, but you only have {user.points || 0}.</p>
-             )}
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button onClick={handleApply} disabled={isApplying || (user && (campaign.requiredPoints || 0) > (user.points || 0))}>
-                {isApplying ? 'Submitting...' : 'Confirm Application'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {renderApplyButton()}
       </CardFooter>
     </Card>
   );
 }
+

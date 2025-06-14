@@ -39,13 +39,15 @@ export const getCampaignById = async (campaignId: string): Promise<Campaign | nu
 export const addCampaign = async (campaignData: Omit<Campaign, 'id'>): Promise<string> => {
   try {
     const campaignsCol = collection(db, 'campaigns');
-    // Ensure dates are stored in a consistent format, e.g., ISO strings or Firestore Timestamps
-    // If campaignData.startDate and campaignData.endDate are Date objects, convert them.
-    // For simplicity, assuming they are already ISO strings as per the type, or will be handled by serverTimestamp if applicable.
-    const docRef = await addDoc(campaignsCol, {
+    const dataToAdd: any = {
       ...campaignData,
-      createdAt: serverTimestamp(), // Optional: track creation time
-    });
+      createdAt: serverTimestamp(),
+    };
+    if (!campaignData.applyLink) {
+      delete dataToAdd.applyLink; // Don't store empty string, store undefined or remove field
+    }
+
+    const docRef = await addDoc(campaignsCol, dataToAdd);
     return docRef.id;
   } catch (error) {
     console.error("Error adding new campaign: ", error);
@@ -219,8 +221,18 @@ export const seedCampaigns = async () => {
         requiredPoints: 0,
       },
       {
-        name: 'AI Innovators Challenge',
-        description: 'Dive into machine learning and build innovative AI projects.',
+        name: 'AI Innovators Challenge (External Link)',
+        description: 'Dive into machine learning and build innovative AI projects. Apply via external form.',
+        startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date(Date.now() + 61 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'upcoming',
+        imageUrl: 'https://placehold.co/600x300.png/FFD700/222831?text=External+AI',
+        requiredPoints: 20,
+        applyLink: 'https://forms.gle/example', // Replace with a real or placeholder Google Form link
+      },
+      {
+        name: 'Data Science Hackathon (Internal)',
+        description: 'Compete in a 48-hour data science hackathon. Apply directly through our platform.',
         startDate: new Date().toISOString(), 
         endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), 
         status: 'ongoing',
@@ -238,7 +250,7 @@ export const seedCampaigns = async () => {
       },
     ];
     for (const camp of dummyCampaigns) {
-      await addDoc(campaignsCol, { ...camp, createdAt: serverTimestamp() });
+      await addCampaign(camp); // Use the updated addCampaign function
     }
     console.log('Dummy campaigns seeded.');
   }
@@ -262,3 +274,4 @@ export const seedDailyChallenge = async () => {
     console.log('Dummy daily challenge for today seeded.');
   }
 };
+

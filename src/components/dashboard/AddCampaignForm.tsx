@@ -15,17 +15,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from '@/hooks/use-toast';
 import { addCampaign } from '@/lib/firebase/firestore';
 import type { Campaign } from '@/types';
-import { CalendarIcon, PlusCircle } from 'lucide-react';
+import { CalendarIcon, LinkIcon, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 const campaignSchema = z.object({
   name: z.string().min(3, { message: 'Campaign name must be at least 3 characters.' }).max(100),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(1000),
+  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(10000),
   startDate: z.date({ required_error: "Start date is required." }),
   endDate: z.date({ required_error: "End date is required." }),
   status: z.enum(['upcoming', 'ongoing', 'past'], { required_error: "Status is required." }),
   imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  applyLink: z.string().url({ message: "Please enter a valid URL for the application link." }).optional().or(z.literal('')),
   requiredPoints: z.coerce.number().int().min(0).optional(),
 }).refine(data => data.endDate >= data.startDate, {
   message: "End date cannot be earlier than start date.",
@@ -50,6 +51,7 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
       description: '',
       status: 'upcoming',
       imageUrl: '',
+      applyLink: '',
       requiredPoints: 0,
     },
   });
@@ -61,6 +63,7 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
         ...data,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
+        applyLink: data.applyLink || undefined, // Store as undefined if empty
         requiredPoints: data.requiredPoints || 0,
       };
       await addCampaign(campaignData);
@@ -211,6 +214,22 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
         />
         <FormField
           control={form.control}
+          name="applyLink"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>External Application Link (Optional)</FormLabel>
+               <div className="relative">
+                <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <FormControl>
+                  <Input placeholder="https://forms.gle/your-form-link" {...field} className="pl-10"/>
+                </FormControl>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="requiredPoints"
           render={({ field }) => (
             <FormItem>
@@ -229,3 +248,4 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
     </Form>
   );
 }
+
