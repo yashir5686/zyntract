@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge'; // Added import
 import {
   Dialog,
   DialogContent,
