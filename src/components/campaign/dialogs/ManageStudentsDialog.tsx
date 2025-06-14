@@ -17,6 +17,7 @@ import { Users2, UserPlus, Loader2, CheckCircle, XCircle, Clock } from 'lucide-r
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Card } from '@/components/ui/card';
 
 interface ManageStudentsDialogProps {
   campaignId: string;
@@ -145,35 +146,37 @@ export default function ManageStudentsDialog({ campaignId, campaignName, setOpen
                     <p className="text-muted-foreground text-sm">No applications or enrollments for this campaign yet.</p>
                 ) : (
                     <div className="space-y-3">
-                        {applications.map(app => (
+                        {applications.map(app => {
+                          return (
                             <Card key={app.id} className="bg-card-foreground/5 p-3">
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                                    <div>
-                                        <p className="font-semibold">{app.userName || 'N/A'}</p>
-                                        <p className="text-xs text-muted-foreground">{app.userEmail}</p>
-                                        <p className="text-xs text-muted-foreground">Applied/Enrolled: {new Date(app.appliedAt).toLocaleDateString()}</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                        {getStatusBadge(app.status)}
-                                        {app.status === 'pending' && (
-                                            <div className="flex gap-2 mt-2 sm:mt-0">
-                                                <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange(app.id, 'approved')} disabled={isLoading}>
-                                                    <CheckCircle className="w-4 h-4 mr-1"/> Approve
-                                                </Button>
-                                                <Button size="sm" variant="destructive" onClick={() => handleStatusChange(app.id, 'rejected')} disabled={isLoading}>
-                                                    <XCircle className="w-4 h-4 mr-1"/> Reject
-                                                </Button>
-                                            </div>
-                                        )}
-                                         {(app.status === 'approved' || app.status === 'rejected') && app.status !== 'pending' && (
-                                            <Button size="sm" variant="outline" onClick={() => handleStatusChange(app.id, 'pending')} disabled={isLoading} className="mt-2 sm:mt-0">
-                                                Set to Pending
-                                            </Button>
-                                        )}
-                                    </div>
+                              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                <div>
+                                  <p className="font-semibold">{app.userName || 'N/A'}</p>
+                                  <p className="text-xs text-muted-foreground">{app.userEmail}</p>
+                                  <p className="text-xs text-muted-foreground">Applied/Enrolled: {new Date(app.appliedAt).toLocaleDateString()}</p>
                                 </div>
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                  {getStatusBadge(app.status)}
+                                  {app.status === 'pending' && (
+                                    <div className="flex gap-2 mt-2 sm:mt-0">
+                                      <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange(app.id, 'approved')} disabled={isLoading}>
+                                        <CheckCircle className="w-4 h-4 mr-1" /> Approve
+                                      </Button>
+                                      <Button size="sm" variant="destructive" onClick={() => handleStatusChange(app.id, 'rejected')} disabled={isLoading}>
+                                        <XCircle className="w-4 h-4 mr-1" /> Reject
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {(app.status === 'approved' || app.status === 'rejected') && app.status !== 'pending' && (
+                                    <Button size="sm" variant="outline" onClick={() => handleStatusChange(app.id, 'pending')} disabled={isLoading} className="mt-2 sm:mt-0">
+                                      Set to Pending
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </Card>
-                        ))}
+                          );
+                        })}
                     </div>
                 )}
             </ScrollArea>

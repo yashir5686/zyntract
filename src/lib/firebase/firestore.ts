@@ -194,7 +194,7 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
       userName: userData.displayName || userData.username || 'Anonymous',
       userEmail: userData.email || 'N/A',
       campaignName: campaignName || 'N/A', // Campaign name should ideally be passed correctly
-      appliedAtTimestamp: serverTimestamp()
+      appliedAtTimestamp: String(serverTimestamp())
     };
     const docRef = await addDoc(applicationsCol, applicationData);
     return docRef.id;
@@ -397,6 +397,7 @@ export const getCoursesForCampaign = async (campaignId: string): Promise<Course[
     return snapshot.docs.map(docSnap => {
         const rawData = docSnap.data();
         const serialized = serializeFirestoreData(rawData);
+        console.log(serialized);
         return {
             id: docSnap.id,
             campaignId: serialized.campaignId,
@@ -408,6 +409,7 @@ export const getCoursesForCampaign = async (campaignId: string): Promise<Course[
         } as Course;
     });
   } catch (error) {
+    console.log("error getting courses")
     console.error('Error fetching courses:', error);
     return [];
   }
