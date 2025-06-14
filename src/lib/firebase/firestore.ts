@@ -1,7 +1,7 @@
 
 import { db } from './config';
 import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp, writeBatch, collectionGroup } from 'firebase/firestore';
-import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
+import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserDailyChallengeSubmission, DailyProblemCache, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
 
 // Helper function to serialize Firestore data
 const serializeFirestoreData = (data: Record<string, any>): Record<string, any> => {
@@ -206,74 +206,134 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
 };
 
 
-// DAILY CHALLENGES
-/*
-export const getTodaysDailyChallenge = async (): Promise<DailyChallenge | null> => {
+// DAILY CHALLENGE SUBMISSIONS
+export const submitDailyChallengeSolution = async (
+  userId: string,
+  challengeId: string,
+  code: string,
+  language: string
+): Promise<UserDailyChallengeSubmission> => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const challengesCol = collection(db, 'dailyChallenges');
-    const q = query(challengesCol, where('date', '==', today), limit(1));
-    const challengeSnapshot = await getDocs(q);
-    if (!challengeSnapshot.empty) {
-      const docData = challengeSnapshot.docs[0];
-      return { id: docData.id, ...serializeFirestoreData(docData.data()) } as DailyChallenge;
-    }
-    const fallbackQuery = query(challengesCol, orderBy('date', 'desc'), limit(1));
-    const fallbackSnapshot = await getDocs(fallbackQuery);
-    if (!fallbackSnapshot.empty) {
-        const docData = fallbackSnapshot.docs[0];
-        return { id: docData.id, ...serializeFirestoreData(docData.data()) } as DailyChallenge;
+    const existingSubmission = await getUserDailyChallengeSubmission(userId, challengeId);
+    if (existingSubmission) {
+      throw new Error('You have already submitted a solution for this challenge.');
     }
 
-    return null;
-  } catch (error) {
-    console.error("Error fetching today's daily challenge: ", error);
-    return null;
-  }
-};
-*/
-
-export const submitChallengeSolution = async (userId: string, challengeId: string, solution: string): Promise<UserSolution | null> => {
-  try {
-    const userSolutionData: Omit<UserSolution, 'pointsAwarded' | 'submittedAt'> & { submittedAt: any } = { 
+    const submissionData = {
       userId,
-      challengeId, // This will be the Codeforces problem ID (e.g. CF-123-A)
-      solution,
-      submittedAt: serverTimestamp(), 
+      challengeId,
+      code,
+      language,
+      submittedAt: serverTimestamp(),
+      status: 'review' as const, // Ensure the type is 'review'
+      reviewedAt: null,
+      adminNotes: null,
     };
-    // Sanitize challengeId for Firestore document ID
-    const sanitizedChallengeId = challengeId.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    const submissionRef = doc(db, `userSubmissions/${userId}_${sanitizedChallengeId}`);
-    await setDoc(submissionRef, userSolutionData );
 
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-        const currentPoints = userSnap.data()?.points || 0;
-        const currentStreak = userSnap.data()?.dailyChallengeStreak || 0;
-        // TODO: Fetch points from the challenge object if dynamic, or use a fixed value
-        const pointsFromChallenge = 10; // Placeholder, ideally from the fetched challenge's points
-        await updateDoc(userRef, {
-            points: currentPoints + pointsFromChallenge,
-            dailyChallengeStreak: currentStreak + 1,
-        });
+    const submissionRef = await addDoc(collection(db, 'userDailyChallengeSubmissions'), submissionData);
+    
+    // Fetch the just-added document to get server-generated timestamp
+    const newSubmissionSnap = await getDoc(submissionRef);
+    if (!newSubmissionSnap.exists()) {
+        throw new Error("Failed to retrieve submission after saving.");
     }
-
-    const rawReturnData = await getDoc(submissionRef);
-    const serializedReturn = serializeFirestoreData(rawReturnData.data()!);
+    const rawData = newSubmissionSnap.data();
+    const serialized = serializeFirestoreData(rawData);
 
     return {
-        userId: serializedReturn.userId,
-        challengeId: serializedReturn.challengeId,
-        solution: serializedReturn.solution,
-        submittedAt: serializedReturn.submittedAt as string, 
-        pointsAwarded: 10 // Placeholder points, could come from challenge object
-    } as UserSolution;
+      id: newSubmissionSnap.id,
+      userId: serialized.userId,
+      challengeId: serialized.challengeId,
+      code: serialized.code,
+      language: serialized.language,
+      submittedAt: serialized.submittedAt as string,
+      status: serialized.status as 'review' | 'approved' | 'rejected',
+      reviewedAt: serialized.reviewedAt ? serialized.reviewedAt as string : null,
+      adminNotes: serialized.adminNotes || null,
+    } as UserDailyChallengeSubmission;
+
   } catch (error) {
-    console.error("Error submitting challenge solution: ", error);
+    console.error('Error submitting daily challenge solution:', error);
     throw error;
   }
 };
+
+export const getUserDailyChallengeSubmission = async (
+  userId: string,
+  challengeId: string
+): Promise<UserDailyChallengeSubmission | null> => {
+  try {
+    const submissionsCol = collection(db, 'userDailyChallengeSubmissions');
+    const q = query(
+      submissionsCol,
+      where('userId', '==', userId),
+      where('challengeId', '==', challengeId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      const docSnap = snapshot.docs[0];
+      const rawData = docSnap.data();
+      const serialized = serializeFirestoreData(rawData);
+      return {
+        id: docSnap.id,
+        ...serialized,
+      } as UserDailyChallengeSubmission;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user daily challenge submission:', error);
+    return null;
+  }
+};
+
+// DAILY PROBLEM CACHE
+const DAILY_PROBLEM_CACHE_DOC_PATH = 'dailyProblemCache/currentProblem';
+
+export const getCachedDailyProblem = async (): Promise<DailyChallenge | null> => {
+  try {
+    const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
+    const cacheSnap = await getDoc(cacheDocRef);
+
+    if (cacheSnap.exists()) {
+      const cachedData = cacheSnap.data() as DailyProblemCache;
+      const todayStr = new Date().toISOString().split('T')[0];
+      // Ensure the cached problem's 'date' field (when it was intended to be active)
+      // matches today. The 'cachedDate' field in DailyProblemCache tells us when it was put into the cache.
+      // The problem's own 'date' field is the crucial one for determining if it's "today's problem".
+      if (cachedData.problem && cachedData.problem.date === todayStr) {
+        console.log('[getCachedDailyProblem] Valid cached problem found for today:', cachedData.problem.id);
+        return cachedData.problem;
+      } else if (cachedData.problem && cachedData.problem.date < todayStr) {
+        console.log('[getCachedDailyProblem] Cached problem is for a past date:', cachedData.problem.date, '- will fetch new.');
+      } else if (cachedData.problem && cachedData.problem.date > todayStr) {
+         console.log('[getCachedDailyProblem] Cached problem is for a future date - this is unexpected but using it for now:', cachedData.problem.date);
+         return cachedData.problem; // Should ideally not happen if logic is correct.
+      }
+    } else {
+      console.log('[getCachedDailyProblem] No cache document found.');
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching cached daily problem:', error);
+    return null;
+  }
+};
+
+export const cacheDailyProblem = async (problem: DailyChallenge): Promise<void> => {
+  try {
+    const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
+    const cacheData: DailyProblemCache = {
+      cachedDate: new Date().toISOString().split('T')[0], // Date when this cache entry was created/updated
+      problem: problem, // The problem object itself, which includes its intended active 'date'
+    };
+    await setDoc(cacheDocRef, cacheData);
+    console.log('[cacheDailyProblem] Problem cached:', problem.id, 'for date:', problem.date);
+  } catch (error) {
+    console.error('Error caching daily problem:', error);
+  }
+};
+
 
 // USER PROFILE
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
@@ -781,25 +841,4 @@ export const seedCampaigns = async () => {
     console.log('Dummy campaigns seeded.');
   }
 };
-
-/*
-export const seedDailyChallenge = async () => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const challengesCol = collection(db, 'dailyChallenges');
-  const q = query(challengesCol, where('date', '==', todayStr), limit(1));
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) {
-    const dummyChallenge: Omit<DailyChallenge, 'id'> = {
-      title: 'Two Sum Problem',
-      description: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.',
-      difficulty: 'easy',
-      points: 10,
-      date: todayStr,
-    };
-    await addDoc(challengesCol, dummyChallenge);
-    console.log('Dummy daily challenge for today seeded.');
-  }
-};
-*/
     

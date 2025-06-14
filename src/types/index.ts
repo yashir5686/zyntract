@@ -47,23 +47,33 @@ export interface ChallengeExample {
 }
 
 export interface DailyChallenge {
-  id: string;
+  id: string; // This will be the unique ID, e.g., "Leet-1" or "CF-problem-id"
   title: string;
   description: string; // HTML content
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
-  date: string; 
+  date: string; // YYYY-MM-DD for when this challenge is active
   examples: ChallengeExample[];
 }
 
-export interface UserSolution {
-  challengeId: string;
+// Renamed from UserSolution to be more specific
+export interface UserDailyChallengeSubmission {
+  id: string; // Firestore document ID
   userId: string;
-  solution: string; // Can be code or text description
-  language?: string; // Optional language if it's code
-  submittedAt: string; 
-  pointsAwarded?: number;
+  challengeId: string; // ID of the DailyChallenge (e.g., "Leet-1")
+  code: string;
+  language: string;
+  submittedAt: string; // ISO string
+  status: 'review' | 'approved' | 'rejected';
+  reviewedAt?: string | null; // ISO string, when admin reviewed
+  adminNotes?: string | null;
 }
+
+export interface DailyProblemCache {
+  cachedDate: string; // YYYY-MM-DD
+  problem: DailyChallenge;
+}
+
 
 // New types for campaign content
 export interface Course {

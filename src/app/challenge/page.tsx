@@ -3,14 +3,14 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserProfile } from '@/lib/firebase/firestore'; 
+import { getUserProfile, getUserDailyChallengeSubmission } from '@/lib/firebase/firestore'; 
 import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
-import type { DailyChallenge, UserProfile, ChallengeExample } from '@/types';
+import type { DailyChallenge, UserProfile, UserDailyChallengeSubmission } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Zap, TrendingUp, AlertCircle } from 'lucide-react';
+import { Zap, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DailyChallengePage() {
@@ -18,22 +18,35 @@ export default function DailyChallengePage() {
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(userProfile);
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
+  const [userSubmission, setUserSubmission] = useState<UserDailyChallengeSubmission | null>(null);
+  const [isLoadingSubmission, setIsLoadingSubmission] = useState(true);
 
   useEffect(() => {
-    const fetchChallenge = async () => {
+    const fetchChallengeAndSubmission = async () => {
       setIsLoadingChallenge(true);
+      setIsLoadingSubmission(true);
+
       console.log("Fetching daily programming problem for challenge page...");
       const currentChallenge = await fetchDailyProgrammingProblem(); 
-      if (currentChallenge) {
-        console.log("Challenge fetched:", currentChallenge.id, currentChallenge.title, "with", currentChallenge.examples.length, "examples.");
-      } else {
-        console.log("No challenge fetched for today.");
-      }
       setChallenge(currentChallenge);
       setIsLoadingChallenge(false);
+
+      if (currentChallenge && user) {
+        console.log("Fetching user submission for challenge:", currentChallenge.id);
+        const submission = await getUserDailyChallengeSubmission(user.uid, currentChallenge.id);
+        setUserSubmission(submission);
+      } else if (!currentChallenge) {
+        console.log("No challenge fetched for today, skipping submission fetch.");
+      } else if (!user) {
+        console.log("User not logged in, skipping submission fetch.");
+      }
+      setIsLoadingSubmission(false);
     };
-    fetchChallenge();
-  }, []);
+
+    if (!authLoading) { // Only fetch if auth state is resolved
+        fetchChallengeAndSubmission();
+    }
+  }, [user, authLoading]); // Re-fetch if user or authLoading state changes
 
   useEffect(() => {
     if (user) {
@@ -41,11 +54,14 @@ export default function DailyChallengePage() {
     }
   }, [user, userProfile]);
 
-  const handleSolutionSuccess = async (pointsAwarded: number) => {
-    if (user) {
-      const updatedProfile = await getUserProfile(user.uid);
-      setCurrentUserProfile(updatedProfile);
-    }
+  const handleSolutionSubmitted = (submission: UserDailyChallengeSubmission) => {
+    setUserSubmission(submission); // Update local state to reflect new submission
+    // Points/streak update will be handled by admin approval later.
+    // Optionally, refresh user profile if submitting affects something immediately (not currently the case)
+    // if (user) {
+    //   const updatedProfile = await getUserProfile(user.uid);
+    //   setCurrentUserProfile(updatedProfile);
+    // }
   };
 
   if (authLoading) {
@@ -69,13 +85,15 @@ export default function DailyChallengePage() {
       </div>
     );
   }
+  
+  const displayLoading = isLoadingChallenge || (challenge && user && isLoadingSubmission);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-2/3">
           <h1 className="font-headline text-3xl md:text-4xl font-bold mb-6">Daily Challenge</h1>
-          {isLoadingChallenge ? (
+          {displayLoading ? (
             <ChallengeSkeleton />
           ) : challenge ? (
             <>
@@ -83,8 +101,8 @@ export default function DailyChallengePage() {
               <SolutionForm
                 challengeId={challenge.id} 
                 userId={user.uid}
-                examples={challenge.examples}
-                onSubmitSuccess={handleSolutionSuccess}
+                existingSubmission={userSubmission}
+                onSolutionSubmitted={handleSolutionSubmitted}
               />
             </>
           ) : (
@@ -119,11 +137,11 @@ export default function DailyChallengePage() {
           <div className="p-6 bg-card rounded-lg shadow-md">
              <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new programming challenge appears daily from a LeetCode-style dataset.</li>
-                <li>The full problem description, including examples, is displayed.</li>
-                <li>Use the integrated code editor to write your solution. Select your preferred language.</li>
-                <li>Click "Run Tests (Mock)" to simulate checking your code against example cases. This is a mock and does not execute your code.</li>
-                <li>The "Submit Final Solution" button is a placeholder for now.</li>
+                <li>A new programming challenge appears daily.</li>
+                <li>Problem description and examples are displayed.</li>
+                <li>Use the integrated code editor to write your solution and select your language.</li>
+                <li>Submit your solution for review. You can only submit once per challenge.</li>
+                <li>Admins will review submissions. Points and streaks are updated upon approval.</li>
              </ul>
           </div>
         </aside>
@@ -136,15 +154,12 @@ const ChallengePageSkeleton = () => (
   <div className="flex flex-col lg:flex-row gap-8">
     <div className="lg:w-2/3">
       <Skeleton className="h-10 w-1/2 mb-6" />
-      <ChallengeSkeleton />
+      <ChallengeSkeleton /> {/* This contains the problem display skeleton */}
       <div className="mt-8 space-y-4">
         <Skeleton className="h-10 w-1/3 mb-2" /> {/* Title Placeholder for editor area */}
         <Skeleton className="h-10 w-1/4 mb-2" /> {/* Language Selector Placeholder */}
-        <Skeleton className="h-[500px] w-full" /> {/* Editor Placeholder */}
-        <div className="flex gap-4">
-          <Skeleton className="h-10 w-36" /> {/* Run Tests Button Placeholder */}
-          <Skeleton className="h-10 w-48" /> {/* Submit Button Placeholder */}
-        </div>
+        <Skeleton className="h-[300px] w-full" /> {/* Editor Placeholder */}
+        <Skeleton className="h-10 w-48" /> {/* Submit Button Placeholder */}
       </div>
     </div>
     <aside className="lg:w-1/3 space-y-6">
