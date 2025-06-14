@@ -7,7 +7,7 @@ import Footer from '@/components/layout/Footer';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
-  title: 'Zyntract Hub',
+  title: 'Zyntract',
   description: 'Empowering the next generation of software professionals.',
 };
 

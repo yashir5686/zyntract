@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { signInWithGoogle, signOut } from '@/lib/firebase/auth';
@@ -13,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogIn, LogOut, User, LayoutDashboard, Puzzle, HomeIcon, Zap } from 'lucide-react';
+import { LogIn, LogOut, User, LayoutDashboard, Puzzle, HomeIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -44,9 +45,15 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
-          <Zap className="h-8 w-8 text-primary" />
-          <span className="font-headline text-2xl font-bold text-foreground">Zyntract Hub</span>
+        <Link href="/" className="flex items-center">
+          <Image
+            src="https://user-images.githubusercontent.com/36591148/288448815-2050011c-0157-4111-996f-c2958f1d3d0f.png"
+            alt="Zyntract Logo"
+            width={160}
+            height={40}
+            className="object-contain"
+            priority
+          />
         </Link>
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           <Link href="/" className="transition-colors hover:text-primary">

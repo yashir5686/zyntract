@@ -9,7 +9,7 @@ export default function HeroSection() {
       <div className="container mx-auto px-4 text-center">
         <Zap className="mx-auto h-16 w-16 text-primary mb-6 animate-pulse" />
         <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          Welcome to <span className="text-primary">Zyntract Hub</span>
+          Welcome to <span className="text-primary">Zyntract</span>
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.4s' }}>
           Unlock your potential with our cutting-edge campaigns and daily challenges. Join a community of innovators and builders.

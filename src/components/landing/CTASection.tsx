@@ -10,7 +10,7 @@ export default function CTASection() {
           Ready to Elevate Your Tech Career?
         </h2>
         <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10">
-          Join Zyntract Hub today and start your journey towards becoming a skilled software professional. Engage in exciting campaigns, solve daily challenges, and connect with a vibrant community.
+          Join Zyntract today and start your journey towards becoming a skilled software professional. Engage in exciting campaigns, solve daily challenges, and connect with a vibrant community.
         </p>
         <Button asChild size="lg" variant="secondary" className="bg-background text-foreground hover:bg-background/90 shadow-xl transition-transform hover:scale-105">
           <Link href="/dashboard">
