@@ -1,7 +1,7 @@
+
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { signInWithGoogle, signOut } from '@/lib/firebase/auth';
@@ -46,14 +46,19 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image
-            src="https://user-images.githubusercontent.com/36591148/288448815-2050011c-0157-4111-996f-c2958f1d3d0f.png"
-            alt="Zyntract Logo"
-            width={160}
-            height={40}
-            className="object-contain"
-            priority
-          />
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-8 w-8 text-primary mr-2"
+          >
+            <path d="M4 5H20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M4 19H20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M16.5 5L7.5 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="font-headline text-2xl font-bold">Zyntract</span>
         </Link>
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           <Link href="/" className="transition-colors hover:text-primary">
