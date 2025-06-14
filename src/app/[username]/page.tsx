@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { getUserProfileByUsername, getCampaignApplicationsByUserId, getCampaignById } from '@/lib/firebase/firestore';
 import type { UserProfile, Campaign, CampaignApplication } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
