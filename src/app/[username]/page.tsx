@@ -77,7 +77,7 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
 
           <section>
             <h2 className="font-headline text-2xl font-semibold mb-4 text-primary flex items-center">
-              <Briefcase className="w-6 h-6 mr-2" /> Campaign Involvement
+              <Briefcase className="w-6 h-6 mr-2" /> Campaign Applications
             </h2>
             {appliedCampaignsDetails.length > 0 ? (
               <div className="space-y-4">
@@ -88,7 +88,7 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">This user hasn't applied to any campaigns yet.</p>
+              <p className="text-muted-foreground">This user hasn't submitted any campaign applications yet.</p>
             )}
           </section>
         </CardContent>
