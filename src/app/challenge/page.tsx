@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserProfile } from '@/lib/firebase/firestore'; 
-import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow';
+import { fetchDailyProgrammingProblem } from '@/ai/flows/fetch-daily-problem-flow'; // Updated import
 import type { DailyChallenge, UserProfile } from '@/types';
 import ChallengeDisplay from '@/components/challenge/ChallengeDisplay';
 import SolutionForm from '@/components/challenge/SolutionForm';
@@ -22,7 +22,13 @@ export default function DailyChallengePage() {
   useEffect(() => {
     const fetchChallenge = async () => {
       setIsLoadingChallenge(true);
+      console.log("Fetching daily programming problem for challenge page...");
       const currentChallenge = await fetchDailyProgrammingProblem(); 
+      if (currentChallenge) {
+        console.log("Challenge fetched:", currentChallenge.id, currentChallenge.title);
+      } else {
+        console.log("No challenge fetched for today.");
+      }
       setChallenge(currentChallenge);
       setIsLoadingChallenge(false);
     };
@@ -37,8 +43,6 @@ export default function DailyChallengePage() {
 
   const handleSolutionSuccess = async (pointsAwarded: number) => {
     if (user) {
-      // Re-fetch user profile to update stats immediately
-      // Alternatively, update local state optimistically then sync
       const updatedProfile = await getUserProfile(user.uid);
       setCurrentUserProfile(updatedProfile);
     }
@@ -114,11 +118,10 @@ export default function DailyChallengePage() {
           <div className="p-6 bg-card rounded-lg shadow-md">
              <h3 className="font-headline text-xl font-semibold mb-4">How it works</h3>
              <ul className="list-disc list-inside text-muted-foreground space-y-2 text-sm">
-                <li>A new programming challenge appears daily.</li>
-                <li>The full problem description is displayed below.</li>
-                <li>Submit your solution approach or code snippet here to earn points.</li>
+                <li>A new programming challenge appears daily from a public LeetCode-style dataset.</li>
+                <li>The full problem description, including examples, is displayed.</li>
+                <li>Submit your solution approach or code snippet here to earn points (evaluation is simulated).</li>
                 <li>Maintain your daily streak for bonus rewards (coming soon!).</li>
-                <li>Solutions are evaluated based on correctness and efficiency (simulated).</li>
              </ul>
           </div>
         </aside>
@@ -175,3 +178,4 @@ const ChallengeSkeleton = () => (
     <Skeleton className="h-4 w-2/3" />
   </div>
 );
+

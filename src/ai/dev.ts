@@ -1,3 +1,3 @@
 
-// Flows will be imported for their side effects in this file.
-import './flows/fetch-daily-problem-flow';
+// This file can be used to import any non-Genkit AI related development utilities or initializers.
+// For now, it is empty as Genkit flows have been removed from the daily problem fetching.
