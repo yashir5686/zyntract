@@ -65,7 +65,7 @@ export interface Course {
   campaignId: string;
   title: string;
   description: string;
-  courseUrl: string; // Changed from videoUrl, made mandatory
+  courseUrl: string; 
   resources?: Array<{ name: string; url: string }>;
   createdAt: string; // ISO date string
 }
@@ -104,3 +104,16 @@ export interface QuizChallenge {
   createdAt: string; // ISO date string
 }
 
+export interface UserCourseCertificate {
+  id: string; // Firestore document ID
+  userId: string;
+  campaignId: string;
+  courseId: string;
+  certificateUrl: string;
+  status: 'review' | 'approved' | 'rejected';
+  submittedAt: string; // ISO date string, effectively from submittedAtTimestamp
+  submittedAtTimestamp?: any; // Firestore ServerTimestamp on create/update
+  reviewedAt?: string | null; // ISO date string, from reviewedAtTimestamp
+  reviewedAtTimestamp?: any | null; // Firestore ServerTimestamp on review
+  adminNotes?: string | null;
+}

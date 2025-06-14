@@ -1,19 +1,27 @@
 
 'use client';
 
-import type { Campaign, CampaignApplication, Course, Project, QuizChallenge } from '@/types';
+import type { Campaign, CampaignApplication, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge, UploadCloud, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
-import { getCampaignApplicationForUser, getCoursesForCampaign, getProjectsForCampaign, getQuizChallengesForCampaign } from '@/lib/firebase/firestore';
+import { getCampaignApplicationForUser, getCoursesForCampaign, getProjectsForCampaign, getQuizChallengesForCampaign, getUserCourseCertificateForCourse, submitOrUpdateCourseCertificate } from '@/lib/firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useToast } from '@/hooks/use-toast';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
 
 interface CampaignPublicViewProps {
   campaign: Campaign;
@@ -37,28 +45,168 @@ const getStatusBadge = (status: Campaign['status']) => {
   }
 };
 
-interface CourseItemProps {
+const certificateSchema = z.object({
+  certificateUrl: z.string().url({ message: 'Please enter a valid URL.' }).min(1, { message: 'Certificate URL cannot be empty.' }),
+});
+type CertificateFormValues = z.infer<typeof certificateSchema>;
+
+
+interface CourseItemCardProps {
   course: Course;
+  campaignId: string;
+  userId: string | null;
 }
 
-const CourseItemCard = ({ course }: CourseItemProps) => {
+const CourseItemCard = ({ course, campaignId, userId }: CourseItemCardProps) => {
+  const { toast } = useToast();
+  const [submittedCertificate, setSubmittedCertificate] = useState<UserCourseCertificate | null>(null);
+  const [isLoadingCertificate, setIsLoadingCertificate] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<CertificateFormValues>({
+    resolver: zodResolver(certificateSchema),
+    defaultValues: {
+      certificateUrl: '',
+    },
+  });
+
+  useEffect(() => {
+    const fetchCertificate = async () => {
+      if (!userId) {
+        setIsLoadingCertificate(false);
+        return;
+      }
+      setIsLoadingCertificate(true);
+      try {
+        const cert = await getUserCourseCertificateForCourse(userId, course.id);
+        setSubmittedCertificate(cert);
+        if (cert?.certificateUrl && (cert.status === 'review' || cert.status === 'rejected')) {
+            form.setValue('certificateUrl', cert.certificateUrl);
+        } else if (cert?.certificateUrl && cert.status === 'approved') {
+            form.setValue('certificateUrl', cert.certificateUrl);
+        }
+      } catch (error) {
+        console.error("Error fetching certificate status:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load certificate status.' });
+      } finally {
+        setIsLoadingCertificate(false);
+      }
+    };
+    fetchCertificate();
+  }, [userId, course.id, toast, form]);
+
+  const onSubmitCertificate = async (data: CertificateFormValues) => {
+    if (!userId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to submit a certificate.' });
+      return;
+    }
+    if (submittedCertificate?.status === 'approved') {
+      toast({ variant: 'destructive', title: 'Already Approved', description: 'Your certificate for this course has already been approved.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newOrUpdatedCert = await submitOrUpdateCourseCertificate(userId, campaignId, course.id, data.certificateUrl);
+      setSubmittedCertificate(newOrUpdatedCert); // Update local state with the new/updated cert
+      toast({ title: 'Certificate Submitted!', description: 'Your certificate is now under review.' });
+      form.reset({ certificateUrl: newOrUpdatedCert.certificateUrl }); // Reset form with new URL
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || 'Could not submit certificate.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const canEditCertificate = !submittedCertificate || submittedCertificate.status === 'review' || submittedCertificate.status === 'rejected';
+
+
   return (
-    <Card className="bg-card-foreground/10 shadow-md hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold flex items-center">
-          <BookOpen className="w-5 h-5 mr-2 text-primary" />
-          {course.title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{course.description}</p>
-        <Button asChild variant="link" className="p-0 h-auto text-primary hover:text-primary/80">
-          <a href={course.courseUrl} target="_blank" rel="noopener noreferrer">
-            <LinkIcon className="w-4 h-4 mr-1" /> View Course
-          </a>
-        </Button>
-      </CardContent>
-    </Card>
+    <AccordionItem value={course.id} className="border-b-0">
+      <Card className="bg-card-foreground/10 shadow-md hover:shadow-lg transition-shadow">
+        <AccordionTrigger className="w-full hover:no-underline">
+          <CardHeader className="flex-1 text-left p-4">
+            <CardTitle className="text-lg font-semibold flex items-center">
+              <BookOpen className="w-5 h-5 mr-2 text-primary" />
+              {course.title}
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                {course.description}
+            </CardDescription>
+          </CardHeader>
+        </AccordionTrigger>
+        <AccordionContent>
+          <CardContent className="p-4 pt-0">
+            <Button asChild variant="link" className="p-0 h-auto text-primary hover:text-primary/80 mb-4">
+              <a href={course.courseUrl} target="_blank" rel="noopener noreferrer">
+                <LinkIcon className="w-4 h-4 mr-1" /> View Course Materials
+              </a>
+            </Button>
+
+            <Separator className="my-4" />
+
+            <h4 className="text-md font-semibold mb-2 text-foreground/90">Certificate Submission</h4>
+            {isLoadingCertificate ? (
+              <div className="flex items-center text-muted-foreground">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading certificate status...
+              </div>
+            ) : (
+              <>
+                {submittedCertificate?.status === 'approved' && (
+                  <div className="p-3 rounded-md bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
+                    <p className="font-semibold flex items-center"><CheckCircle className="w-4 h-4 mr-2"/>Status: Approved</p>
+                    <p className="text-xs mt-1">Your certificate for this course has been approved.</p>
+                    <p className="text-xs mt-1 break-all">URL: <a href={submittedCertificate.certificateUrl} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">{submittedCertificate.certificateUrl}</a></p>
+                  </div>
+                )}
+                {submittedCertificate?.status === 'review' && (
+                  <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400">
+                    <p className="font-semibold flex items-center"><Info className="w-4 h-4 mr-2"/>Status: In Review</p>
+                    <p className="text-xs mt-1">Your certificate is awaiting review by an admin.</p>
+                     <p className="text-xs mt-1 break-all">URL: <a href={submittedCertificate.certificateUrl} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">{submittedCertificate.certificateUrl}</a></p>
+                  </div>
+                )}
+                {submittedCertificate?.status === 'rejected' && (
+                  <div className="p-3 rounded-md bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400">
+                    <p className="font-semibold flex items-center"><X className="w-4 h-4 mr-2"/>Status: Rejected</p>
+                    {submittedCertificate.adminNotes && <p className="text-xs mt-1">Admin Notes: {submittedCertificate.adminNotes}</p>}
+                    <p className="text-xs mt-1">You can update and resubmit your certificate URL below.</p>
+                  </div>
+                )}
+
+                {canEditCertificate && (
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmitCertificate)} className="space-y-3 mt-3">
+                      <FormField
+                        control={form.control}
+                        name="certificateUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Certificate URL</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="https://linkedin.com/learning/certificate/..." 
+                                {...field} 
+                                className="bg-input border-border focus:ring-primary text-sm"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="submit" size="sm" disabled={isSubmitting} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        {submittedCertificate && (submittedCertificate.status === 'review' || submittedCertificate.status === 'rejected') ? 'Resubmit Certificate' : 'Submit Certificate'}
+                      </Button>
+                    </form>
+                  </Form>
+                )}
+              </>
+            )}
+          </CardContent>
+        </AccordionContent>
+      </Card>
+    </AccordionItem>
   );
 };
 
@@ -191,9 +339,16 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
                 renderLoadingPlaceholder(enrollmentStatus === 'checking' ? 'Checking enrollment status...' : 'Loading courses...')
               ) : isEnrolled ? (
                 courses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {courses.map(course => <CourseItemCard key={course.id} course={course} />)}
-                  </div>
+                  <Accordion type="single" collapsible className="w-full space-y-3">
+                    {courses.map(course => (
+                        <CourseItemCard 
+                            key={course.id} 
+                            course={course} 
+                            campaignId={campaign.id} 
+                            userId={user?.uid || null} 
+                        />
+                    ))}
+                  </Accordion>
                 ) : (
                   renderContentPlaceholder("No courses available for this campaign yet.")
                 )
@@ -270,6 +425,3 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
     </div>
   );
 }
-
-
-    

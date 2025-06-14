@@ -1,7 +1,7 @@
 
 import { db } from './config';
 import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp, writeBatch, collectionGroup } from 'firebase/firestore';
-import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution, Course, Project, QuizChallenge } from '@/types';
+import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserSolution, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
 
 // Helper function to serialize Firestore data
 const serializeFirestoreData = (data: Record<string, any>): Record<string, any> => {
@@ -76,7 +76,6 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt
 };
 
 // CAMPAIGN APPLICATIONS & ENROLLMENT
-// The applyToCampaign function is removed as applications are now external or admin-driven.
 
 export const getCampaignApplicationForUser = async (userId: string, campaignId: string): Promise<CampaignApplication | null> => {
   try {
@@ -127,8 +126,6 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
 export const getCampaignApplicationsForCampaign = async (campaignId: string): Promise<CampaignApplication[]> => {
   try {
     const applicationsCol = collection(db, 'campaignApplications');
-    // Firestore requires an index for this query (campaignId ASC, appliedAtTimestamp DESC)
-    // The error message from Firebase will guide you to create it in the console.
     const q = query(applicationsCol, where('campaignId', '==', campaignId), orderBy('appliedAtTimestamp', 'desc'));
     const appSnapshot = await getDocs(q);
     return appSnapshot.docs.map(docSnap => {
@@ -179,14 +176,14 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
 
     if (!existingAppSnapshot.empty) {
        const existingAppId = existingAppSnapshot.docs[0].id;
-       await updateCampaignApplicationStatus(existingAppId, 'approved'); // Ensure it's marked approved if re-enrolling
+       await updateCampaignApplicationStatus(existingAppId, 'approved'); 
        return existingAppId; 
     }
     
     const applicationData: Omit<CampaignApplication, 'id' | 'appliedAt'> & { appliedAtTimestamp: any } = {
       userId,
       campaignId,
-      status: 'approved', // Directly enroll as 'approved'
+      status: 'approved', 
       userName: userData.displayName || userData.username || 'N/A',
       userEmail: userData.email || email,
       campaignName: campaignName || 'N/A',
@@ -408,6 +405,114 @@ export const getQuizChallengesForCampaign = async (campaignId: string): Promise<
   }
 };
 
+// USER COURSE CERTIFICATES
+export const submitOrUpdateCourseCertificate = async (
+  userId: string,
+  campaignId: string,
+  courseId: string,
+  certificateUrl: string
+): Promise<UserCourseCertificate> => {
+  try {
+    const certificatesCol = collection(db, 'userCourseCertificates');
+    const q = query(
+      certificatesCol,
+      where('userId', '==', userId),
+      where('courseId', '==', courseId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+
+    const dataToUpsert: Omit<UserCourseCertificate, 'id' | 'submittedAt' | 'reviewedAt' | 'adminNotes'> & { submittedAtTimestamp: any } = {
+      userId,
+      campaignId,
+      courseId,
+      certificateUrl,
+      status: 'review', 
+      submittedAtTimestamp: serverTimestamp(),
+    };
+
+    let docId: string;
+    let newStatus: UserCourseCertificate['status'] = 'review';
+
+    if (snapshot.empty) {
+      const docRef = await addDoc(certificatesCol, dataToUpsert);
+      docId = docRef.id;
+    } else {
+      const existingDoc = snapshot.docs[0];
+      docId = existingDoc.id;
+      const existingData = existingDoc.data() as Partial<UserCourseCertificate>;
+      
+      if (existingData.status === 'approved') {
+        throw new Error('Cannot update an approved certificate.');
+      }
+      // If existing and not approved, update URL and reset status to 'review'
+      await updateDoc(doc(db, 'userCourseCertificates', docId), {
+        certificateUrl: dataToUpsert.certificateUrl,
+        status: newStatus,
+        submittedAtTimestamp: dataToUpsert.submittedAtTimestamp,
+        reviewedAtTimestamp: null, // Clear previous review details
+        adminNotes: null, // Clear previous admin notes
+      });
+    }
+    
+    // Fetch the potentially created/updated document to return actual server timestamp
+    const finalDoc = await getDoc(doc(db, 'userCourseCertificates', docId));
+    if (!finalDoc.exists()) {
+        throw new Error('Failed to retrieve certificate after submission.');
+    }
+
+    return { id: finalDoc.id, ...serializeFirestoreData(finalDoc.data()) } as UserCourseCertificate;
+
+  } catch (error) {
+    console.error('Error submitting/updating course certificate:', error);
+    throw error;
+  }
+};
+
+export const getUserCourseCertificateForCourse = async (
+  userId: string,
+  courseId: string
+): Promise<UserCourseCertificate | null> => {
+  try {
+    const certificatesCol = collection(db, 'userCourseCertificates');
+    const q = query(
+      certificatesCol,
+      where('userId', '==', userId),
+      where('courseId', '==', courseId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      const docData = snapshot.docs[0];
+      return { id: docData.id, ...serializeFirestoreData(docData.data()) } as UserCourseCertificate;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user course certificate:', error);
+    return null;
+  }
+};
+
+// Admin functions for certificates (Placeholders for now)
+export const getCertificatesForCourseForAdmin = async (courseId: string): Promise<UserCourseCertificate[]> => {
+    console.log("getCertificatesForCourseForAdmin called for courseId:", courseId);
+    // In a real implementation, query 'userCourseCertificates' collection
+    // where('courseId', '==', courseId).orderBy('submittedAtTimestamp', 'desc')
+    return []; 
+};
+
+export const updateCertificateStatusByAdmin = async (certificateId: string, status: 'approved' | 'rejected', adminNotes?: string): Promise<void> => {
+    console.log("updateCertificateStatusByAdmin called for certId:", certificateId, "status:", status, "notes:", adminNotes);
+    // In a real implementation, update the document in 'userCourseCertificates'
+    // with the new status, adminNotes, and reviewedAtTimestamp: serverTimestamp()
+    const certRef = doc(db, 'userCourseCertificates', certificateId);
+    await updateDoc(certRef, {
+        status,
+        adminNotes: adminNotes || null,
+        reviewedAtTimestamp: serverTimestamp()
+    });
+};
+
 
 // SEEDING (Keep existing seed functions)
 export const seedCampaigns = async () => {
@@ -478,3 +583,4 @@ export const seedDailyChallenge = async () => {
     console.log('Dummy daily challenge for today seeded.');
   }
 };
+
