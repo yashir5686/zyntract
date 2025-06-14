@@ -1,7 +1,7 @@
 
 import { db } from './config';
 import { collection, getDocs, addDoc, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp, writeBatch, collectionGroup } from 'firebase/firestore';
-import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserDailyChallengeSubmission, DailyProblemCache, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
+import type { Campaign, DailyChallenge, UserProfile, CampaignApplication, UserDailyChallengeSubmission, Course, Project, QuizChallenge, UserCourseCertificate } from '@/types';
 
 // Helper function to serialize Firestore data
 const serializeFirestoreData = (data: Record<string, any>): Record<string, any> => {
@@ -225,14 +225,13 @@ export const submitDailyChallengeSolution = async (
       code,
       language,
       submittedAt: serverTimestamp(),
-      status: 'review' as const, // Ensure the type is 'review'
+      status: 'review' as const, 
       reviewedAt: null,
       adminNotes: null,
     };
 
     const submissionRef = await addDoc(collection(db, 'userDailyChallengeSubmissions'), submissionData);
     
-    // Fetch the just-added document to get server-generated timestamp
     const newSubmissionSnap = await getDoc(submissionRef);
     if (!newSubmissionSnap.exists()) {
         throw new Error("Failed to retrieve submission after saving.");
@@ -287,52 +286,48 @@ export const getUserDailyChallengeSubmission = async (
   }
 };
 
-// DAILY PROBLEM CACHE
-const DAILY_PROBLEM_CACHE_DOC_PATH = 'dailyProblemCache/currentProblem';
-
-export const getCachedDailyProblem = async (): Promise<DailyChallenge | null> => {
+// DAILY PROBLEM HANDLING (New Strategy)
+export const getDailyProblemByDate = async (dateString: string): Promise<DailyChallenge | null> => {
   try {
-    const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
-    const cacheSnap = await getDoc(cacheDocRef);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const problemRef = doc(db, 'dailyProblems', dateString);
+    const problemSnap = await getDoc(problemRef);
 
-    if (cacheSnap.exists()) {
-      const cachedData = cacheSnap.data() as DailyProblemCache;
-      
-      // Validate the structure and date field of the cached problem
-      if (cachedData.problem && typeof cachedData.problem.date === 'string') {
-        if (cachedData.problem.date === todayStr) {
-          console.log('[getCachedDailyProblem] Valid cached problem found for today:', cachedData.problem.id);
-          return cachedData.problem;
-        } else if (cachedData.problem.date < todayStr) {
-          console.log(`[getCachedDailyProblem] Cached problem is for a past date (${cachedData.problem.date}). Fetching new for ${todayStr}.`);
-        } else { // cachedData.problem.date > todayStr
-          console.log(`[getCachedDailyProblem] Cached problem is for a future date (${cachedData.problem.date}). This is unexpected. Fetching new for ${todayStr}.`);
-        }
-      } else {
-        console.warn('[getCachedDailyProblem] Cache document contains invalid or missing problem data. Problem or problem.date is problematic. Problem data:', cachedData.problem);
-      }
-    } else {
-      console.log(`[getCachedDailyProblem] No cache document found at ${DAILY_PROBLEM_CACHE_DOC_PATH}. Will fetch new problem.`);
+    if (problemSnap.exists()) {
+      const data = problemSnap.data();
+      console.log(`[getDailyProblemByDate] Found problem for date ${dateString} in Firestore.`);
+      // Ensure all fields are correctly typed and serialized
+      const serializedData = serializeFirestoreData(data);
+      return {
+        id: serializedData.id, // The original problem ID (e.g., Leet-123)
+        title: serializedData.title,
+        description: serializedData.description,
+        difficulty: serializedData.difficulty,
+        points: serializedData.points,
+        date: serializedData.date, // This should match dateString
+        examples: serializedData.examples,
+        cachedAt: serializedData.cachedAt as string | undefined,
+      } as DailyChallenge;
     }
-    return null; // If no valid problem for today is found in cache
+    console.log(`[getDailyProblemByDate] No problem found for date ${dateString} in Firestore.`);
+    return null;
   } catch (error) {
-    console.error('Error fetching cached daily problem:', error);
+    console.error(`Error fetching problem for date ${dateString}:`, error);
     return null;
   }
 };
 
-export const cacheDailyProblem = async (problem: DailyChallenge): Promise<void> => {
+export const saveDailyProblem = async (problem: DailyChallenge): Promise<void> => {
   try {
-    const cacheDocRef = doc(db, DAILY_PROBLEM_CACHE_DOC_PATH);
-    const cacheData: DailyProblemCache = {
-      cachedDate: new Date().toISOString().split('T')[0], 
-      problem: problem, 
+    // The problem.date field (e.g., "2023-10-27") will be used as the document ID.
+    const problemRef = doc(db, 'dailyProblems', problem.date);
+    const dataToSave = {
+      ...problem, // Spread all fields from the problem object
+      cachedAt: serverTimestamp(), // Add server timestamp for when it was cached
     };
-    await setDoc(cacheDocRef, cacheData);
-    console.log('[cacheDailyProblem] Problem cached:', problem.id, 'for date:', problem.date);
+    await setDoc(problemRef, dataToSave);
+    console.log(`[saveDailyProblem] Problem ${problem.id} saved for date ${problem.date}.`);
   } catch (error) {
-    console.error('Error caching daily problem:', error);
+    console.error(`Error saving problem ${problem.id} for date ${problem.date}:`, error);
   }
 };
 
@@ -844,4 +839,3 @@ export const seedCampaigns = async () => {
   }
 };
     
-

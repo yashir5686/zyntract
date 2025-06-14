@@ -1,15 +1,16 @@
 
 'use server';
 /**
- * @fileOverview Fetches a daily programming problem, utilizing a Firestore cache.
+ * @fileOverview Fetches a daily programming problem, utilizing a Firestore 'dailyProblems' collection.
  *
  * - fetchDailyProgrammingProblem - A function that retrieves and formats a problem,
- *   checking cache first, then fetching from external source if needed.
+ *   checking Firestore for today's problem first, then fetching from an external source if needed
+ *   and saving it to the 'dailyProblems' collection for the current date.
  * - DailyChallengeOutput - The return type (reusing existing DailyChallenge type from @/types).
  */
 
 import type { DailyChallenge, ChallengeExample } from '@/types';
-import { getCachedDailyProblem, cacheDailyProblem } from '@/lib/firebase/firestore';
+import { getDailyProblemByDate, saveDailyProblem } from '@/lib/firebase/firestore';
 
 interface LeetCodeProblemDetail {
   questionId: string;
@@ -122,7 +123,6 @@ async function fetchFromExternalSource(): Promise<DailyChallenge | null> {
     
     const difficulty = mapApiDifficultyToEnum(problem.difficulty);
     const points = getPointsForDifficulty(difficulty);
-    // Ensure the problem ID is unique and identifiable, prefixing to avoid collision if other sources are added.
     const problemId = `Leet-${problem.questionId}`; 
     const examples = parseExamplesFromHtml(problem.content);
     const todayStr = new Date().toISOString().split('T')[0];
@@ -146,24 +146,25 @@ async function fetchFromExternalSource(): Promise<DailyChallenge | null> {
 }
 
 export async function fetchDailyProgrammingProblem(): Promise<DailyChallenge | null> {
-  console.log('[fetchDailyProgrammingProblem] Attempting to fetch daily problem...');
+  const todayStr = new Date().toISOString().split('T')[0];
+  console.log(`[fetchDailyProgrammingProblem] Attempting to fetch daily problem for date: ${todayStr}...`);
   
-  const cachedProblem = await getCachedDailyProblem();
-  if (cachedProblem) {
-    console.log('[fetchDailyProgrammingProblem] Returning cached problem for today:', cachedProblem.id);
-    return cachedProblem;
+  let problem = await getDailyProblemByDate(todayStr);
+  if (problem) {
+    console.log(`[fetchDailyProgrammingProblem] Returning problem from Firestore for date ${todayStr}:`, problem.id);
+    return problem;
   }
 
-  console.log('[fetchDailyProgrammingProblem] No valid cache for today. Fetching new problem from external source.');
+  console.log(`[fetchDailyProgrammingProblem] No problem found in Firestore for ${todayStr}. Fetching new problem from external source.`);
   const newProblem = await fetchFromExternalSource();
 
   if (newProblem) {
-    // newProblem.date is already set to today by fetchFromExternalSource
-    await cacheDailyProblem(newProblem);
-    console.log('[fetchDailyProgrammingProblem] New problem fetched and cached:', newProblem.id);
+    // newProblem.date is already set to todayStr by fetchFromExternalSource
+    await saveDailyProblem(newProblem);
+    console.log(`[fetchDailyProgrammingProblem] New problem fetched, set for date ${newProblem.date}, and saved to Firestore:`, newProblem.id);
     return newProblem;
   } else {
-    console.error('[fetchDailyProgrammingProblem] Failed to fetch new problem from external source. No problem available for today.');
+    console.error('[fetchDailyProgrammingProblem] Failed to fetch new problem from external source. No problem available.');
     return null;
   }
 }
