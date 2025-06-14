@@ -77,6 +77,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
   const [isManageProjectsOpen, setIsManageProjectsOpen] = useState(false);
   const [isManageQuizzesOpen, setIsManageQuizzesOpen] = useState(false);
   const [isManageStudentsOpen, setIsManageStudentsOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
   const [applicationsList, setApplicationsList] = useState<CampaignApplication[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
@@ -107,18 +108,33 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-4xl mx-auto shadow-xl">
         {campaign.imageUrl && (
-          <div className="relative w-full h-64 md:h-80">
-            <Image
-              src={campaign.imageUrl}
-              alt={campaign.name}
-              fill
-              sizes="(min-width: 1024px) 66vw, (min-width: 768px) 75vw, 100vw"
-              style={{ objectFit: 'cover' }}
-              className="bg-muted"
-              priority
-              data-ai-hint="campaign event"
-            />
-          </div>
+          <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+            <DialogTrigger asChild>
+              <div className="relative w-full h-64 md:h-80 cursor-pointer">
+                <Image
+                  src={campaign.imageUrl}
+                  alt={campaign.name}
+                  fill
+                  sizes="(min-width: 1024px) 66vw, (min-width: 768px) 75vw, 100vw"
+                  style={{ objectFit: 'cover' }}
+                  className="bg-muted"
+                  priority
+                  data-ai-hint="campaign event"
+                />
+              </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-screen-lg p-0 bg-transparent border-0 shadow-none">
+              <div className="relative aspect-video max-h-[80vh]">
+                <Image
+                  src={campaign.imageUrl}
+                  alt={`${campaign.name} - Full size`}
+                  layout="fill"
+                  objectFit="contain"
+                  className="rounded-md"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
         <CardHeader className="p-6">
           <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2 mb-2">
@@ -261,6 +277,3 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
     </div>
   );
 }
-
-
-    
