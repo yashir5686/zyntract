@@ -5,7 +5,7 @@ import type { Campaign, CampaignApplication, Course, Project, QuizChallenge, Use
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge, UploadCloud, Check, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge, UploadCloud, Check, X, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useRouter } from 'next/navigation';
 
 
 interface CampaignPublicViewProps {
@@ -214,6 +215,7 @@ const CourseItemCard = ({ course, campaignId, userId }: CourseItemCardProps) => 
 
 export default function CampaignPublicView({ campaign }: CampaignPublicViewProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [enrollmentStatus, setEnrollmentStatus] = useState<CampaignApplication['status'] | 'not_applied' | 'checking'>('checking');
   const [courses, setCourses] = useState<Course[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -283,6 +285,44 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
       </div>
   );
 
+  const renderApplyButton = () => {
+    if (campaign.status === 'past') {
+      return <Button className="w-full md:w-auto" disabled>Campaign Ended</Button>;
+    }
+
+    if (campaign.applyLink) {
+      if (!user) {
+        return (
+          <Button
+            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={() => router.push('/signin')}
+          >
+            Sign in to Apply <LogIn className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      }
+      return (
+        <Button
+          asChild
+          className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          <a href={campaign.applyLink} target="_blank" rel="noopener noreferrer">
+            Apply via Link <ExternalLink className="ml-2 h-4 w-4" />
+          </a>
+        </Button>
+      );
+    } else {
+      return (
+        <Button
+          className="w-full md:w-auto"
+          disabled
+        >
+          Admin Managed Enrollment
+        </Button>
+      );
+    }
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -339,6 +379,11 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
         </CardHeader>
         
         <CardContent className="p-6">
+          <div className="mb-6">
+            {renderApplyButton()}
+          </div>
+          <Separator className="mb-6" />
+
           <Tabs defaultValue="details" className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 mb-6">
               <TabsTrigger value="details"><FileBadge className="w-4 h-4 mr-2 md:hidden lg:inline-block"/>Details</TabsTrigger>
