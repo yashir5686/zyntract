@@ -28,7 +28,7 @@ export default function HeroSection() {
         </div>
         <div className="mt-16 animate-fade-in" style={{ animationDelay: '0.8s' }}>
           <Image
-            src="https://placehold.co/1200x600.png?bg=2A323E&fc=7DF9FF"
+            src="https://i.imgur.com/CNR8yY6.png"
             alt="Zyntract Platform Showcase"
             width={1200}
             height={600}

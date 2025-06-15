@@ -5,8 +5,8 @@ import { Users, Briefcase, Zap, Award } from 'lucide-react';
 
 const statsData = [
   { icon: <Users className="h-12 w-12 text-primary" />, valueString: '10,000+', label: 'Active Users' },
-  { icon: <Briefcase className="h-12 w-12 text-primary" />, valueString: '500+', label: 'Campaigns Launched' },
-  { icon: <Zap className="h-12 w-12 text-primary" />, valueString: '1,000,000+', label: 'Problems Solved' },
+  { icon: <Briefcase className="h-12 w-12 text-primary" />, valueString: '100+', label: 'Campaigns Launched' },
+  { icon: <Zap className="h-12 w-12 text-primary" />, valueString: '10,000+', label: 'Problems Solved' },
   { icon: <Award className="h-12 w-12 text-primary" />, valueString: '95%', label: 'User Satisfaction' },
 ];
 

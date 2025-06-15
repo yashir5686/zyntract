@@ -14,7 +14,7 @@ export default function LandingPage() {
       <AboutUsSection />
       <StatsSection />
       <ClientsSection />
-      <TestimonialsSection />
+      {/* <TestimonialsSection /> */}
       <CTASection />
     </div>
   );
