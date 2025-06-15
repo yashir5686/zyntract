@@ -15,7 +15,7 @@ export default function Footer() {
             size="sm"
             asChild
           >
-            <a href="https://forms.gle/your-placeholder-link" target="_blank" rel="noopener noreferrer">
+            <a href="https://forms.gle/PcVD95ToJwUTsonD7" target="_blank" rel="noopener noreferrer">
               <HelpCircle className="mr-2 h-4 w-4" /> Report an Issue
             </a>
           </Button>

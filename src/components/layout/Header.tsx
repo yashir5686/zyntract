@@ -42,33 +42,29 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
         <Link href="/" className="flex items-center">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8 text-primary mr-2"
-          >
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary mr-2">
+            <defs>
+              <linearGradient id="logoGradientHeader" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: 'hsl(220, 100%, 57%)'}} />
+                <stop offset="100%" style={{stopColor: 'hsl(263, 100%, 50%)'}} />
+              </linearGradient>
+            </defs>
             <polygon
-              points="12,2 19.82,6.5 19.82,15.5 12,20 4.18,15.5 4.18,6.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinejoin="round"
+              points="12,1.5 21.5,6 21.5,18 12,22.5 2.5,18 2.5,6"
+              fill="url(#logoGradientHeader)"
             />
-            <text
-              x="12"
-              y="12.5" 
-              fontFamily="Space Grotesk, sans-serif"
-              fontSize="11"
-              fontWeight="bold"
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="currentColor"
-            >
-              Z
-            </text>
+            <path d="M2.8,14.5 L8,12 L5.5,9" stroke="hsl(220, 100%, 75%)" strokeWidth="0.65" fill="none" />
+            <circle cx="2.8" cy="14.5" r="0.9" fill="hsl(220, 100%, 75%)" />
+            <circle cx="8" cy="12" r="0.9" fill="hsl(220, 100%, 75%)" />
+            <circle cx="5.5" cy="9" r="0.9" fill="hsl(220, 100%, 75%)" />
+            <path d="M21.2,9.5 L16,12 L18.5,15" stroke="hsl(263, 100%, 75%)" strokeWidth="0.65" fill="none" />
+            <circle cx="21.2" cy="9.5" r="0.9" fill="hsl(263, 100%, 75%)" />
+            <circle cx="16" cy="12" r="0.9" fill="hsl(263, 100%, 75%)" />
+            <circle cx="18.5" cy="15" r="0.9" fill="hsl(263, 100%, 75%)" />
+            <path
+              d="M6.5,7.5 L17.5,7.5 L17.5,9.5 L9.5,17.5 L6.5,17.5 L6.5,15.5 L14.5,9.5 L6.5,9.5 Z"
+              fill="white"
+            />
           </svg>
           <span className="font-headline text-2xl font-bold">Zyntract</span>
         </Link>

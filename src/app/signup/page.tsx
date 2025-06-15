@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Zap } from 'lucide-react'; // Or your chosen logo icon
 
 export default function SignUpPage() {
   const { user, loading } = useAuth();
@@ -36,34 +35,30 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
            <div className="mx-auto mb-4 flex items-center justify-center">
-             <svg
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-12 w-12 text-primary"
-              >
-                <polygon
-                  points="12,2 19.82,6.5 19.82,15.5 12,20 4.18,15.5 4.18,6.5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  fill="none"
-                  strokeLinejoin="round"
-                />
-                <text
-                  x="12"
-                  y="12.5" 
-                  fontFamily="Space Grotesk, sans-serif"
-                  fontSize="11"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill="currentColor"
-                >
-                  Z
-                </text>
-              </svg>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-primary">
+              <defs>
+                <linearGradient id="logoGradientSignup" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor: 'hsl(220, 100%, 57%)'}} />
+                  <stop offset="100%" style={{stopColor: 'hsl(263, 100%, 50%)'}} />
+                </linearGradient>
+              </defs>
+              <polygon
+                points="12,1.5 21.5,6 21.5,18 12,22.5 2.5,18 2.5,6"
+                fill="url(#logoGradientSignup)"
+              />
+              <path d="M2.8,14.5 L8,12 L5.5,9" stroke="hsl(220, 100%, 75%)" strokeWidth="0.65" fill="none" />
+              <circle cx="2.8" cy="14.5" r="0.9" fill="hsl(220, 100%, 75%)" />
+              <circle cx="8" cy="12" r="0.9" fill="hsl(220, 100%, 75%)" />
+              <circle cx="5.5" cy="9" r="0.9" fill="hsl(220, 100%, 75%)" />
+              <path d="M21.2,9.5 L16,12 L18.5,15" stroke="hsl(263, 100%, 75%)" strokeWidth="0.65" fill="none" />
+              <circle cx="21.2" cy="9.5" r="0.9" fill="hsl(263, 100%, 75%)" />
+              <circle cx="16" cy="12" r="0.9" fill="hsl(263, 100%, 75%)" />
+              <circle cx="18.5" cy="15" r="0.9" fill="hsl(263, 100%, 75%)" />
+              <path
+                d="M6.5,7.5 L17.5,7.5 L17.5,9.5 L9.5,17.5 L6.5,17.5 L6.5,15.5 L14.5,9.5 L6.5,9.5 Z"
+                fill="white"
+              />
+            </svg>
           </div>
           <CardTitle className="font-headline text-3xl">Create Your Zyntract Account</CardTitle>
           <CardDescription>Join our community of innovators and builders.</CardDescription>
