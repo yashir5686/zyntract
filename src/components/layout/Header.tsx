@@ -62,7 +62,7 @@ export default function Header() {
             <circle cx="16" cy="12" r="0.9" fill="hsl(263, 100%, 75%)" />
             <circle cx="18.5" cy="15" r="0.9" fill="hsl(263, 100%, 75%)" />
             <path
-              d="M6.5,7.5 L17.5,7.5 L17.5,9.5 L9.5,17.5 L6.5,17.5 L6.5,15.5 L14.5,9.5 L6.5,9.5 Z"
+              d="M6.5,7.5 H17.5 V9.5 L9.5,15.5 H17.5 V17.5 H6.5 V15.5 L14.5,9.5 H6.5 V7.5 Z"
               fill="white"
             />
           </svg>
