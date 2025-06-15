@@ -9,7 +9,7 @@ import CampaignCard from '@/components/dashboard/CampaignCard';
 import AddCampaignForm from '@/components/dashboard/AddCampaignForm';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, RefreshCw } from 'lucide-react';
+import { PlusCircle, RefreshCw, LogIn } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -19,12 +19,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user, userProfile, loading: authLoading, isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
   const [isAddCampaignOpen, setIsAddCampaignOpen] = useState(false);
+  const router = useRouter();
 
   const fetchCampaignData = async () => {
     setIsLoadingCampaigns(true);
@@ -59,19 +61,8 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="font-headline text-3xl md:text-4xl font-bold mb-4">Access Denied</h1>
-        <p className="text-lg text-muted-foreground mb-8">
-          Please sign in to view and apply for campaigns.
-        </p>
-        <Button asChild size="lg">
-          <Link href="/">Go to Homepage</Link>
-        </Button>
-      </div>
-    );
-  }
+  // User check removed, dashboard is now public.
+  // Apply button logic on CampaignCard will handle redirect for non-logged-in users.
   
   const ongoingCampaigns = campaigns.filter(c => c.status === 'ongoing');
   const upcomingCampaigns = campaigns.filter(c => c.status === 'upcoming');
@@ -126,9 +117,14 @@ export default function DashboardPage() {
             <CampaignSection title="Upcoming Campaigns" campaigns={upcomingCampaigns} user={userProfile} />
           )}
           {campaigns.length === 0 && !isLoadingCampaigns && (
-            <div className="text-center py-10">
+             <div className="text-center py-10 bg-card p-8 rounded-lg shadow-md">
               <h2 className="font-headline text-2xl mb-2">No Campaigns Available</h2>
               <p className="text-muted-foreground">Check back later for new opportunities, or try refreshing. Admins can add new campaigns.</p>
+              {!user && (
+                <Button onClick={() => router.push('/signin')} className="mt-6">
+                  <LogIn className="mr-2 h-4 w-4" /> Sign In to Apply
+                </Button>
+              )}
             </div>
           )}
           {pastCampaigns.length > 0 && (
@@ -143,7 +139,7 @@ export default function DashboardPage() {
 interface CampaignSectionProps {
   title: string;
   campaigns: Campaign[];
-  user: UserProfile | null;
+  user: UserProfile | null; // userProfile passed here, not the FirebaseUser
 }
 
 const CampaignSection = ({ title, campaigns, user }: CampaignSectionProps) => (

@@ -3,17 +3,18 @@ import type { Campaign, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
+import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink, LogIn } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface CampaignCardProps {
   campaign: Campaign;
   user: UserProfile | null;
-  // onApplySuccess is removed as internal applications are gone
 }
 
 export default function CampaignCard({ campaign, user }: CampaignCardProps) {
+  const router = useRouter();
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   const getStatusBadge = () => {
@@ -29,37 +30,45 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
     }
   };
 
-  // Simplified logic as internal application is removed
-  const canInteractWithCampaign = user && campaign.status !== 'past';
-  const buttonText = () => {
-    if (campaign.status === 'past') return 'Campaign Ended';
-    if (!campaign.applyLink) return 'Admin Managed Enrollment';
-    if (!user) return 'Sign in to Apply Externally';
-    return 'Apply via Link';
-  };
-
   const renderApplyButton = () => {
+    if (campaign.status === 'past') {
+      return <Button className="w-full" disabled>Campaign Ended</Button>;
+    }
+
     if (campaign.applyLink) {
+      if (!user) {
+        return (
+          <Button
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent Link navigation if card is wrapped
+              router.push('/signin');
+            }}
+          >
+            Sign in to Apply <LogIn className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      }
+      // User is logged in, and there's an applyLink
       return (
         <Button
           asChild
           className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          disabled={!user || campaign.status === 'past'} // Disabled if not logged in or campaign is past
         >
           <a href={campaign.applyLink} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-            {buttonText()}
-            {user && campaign.status !== 'past' && <ExternalLink className="ml-2 h-4 w-4" />}
+            Apply via Link <ExternalLink className="ml-2 h-4 w-4" />
           </a>
         </Button>
       );
     } else {
+      // No applyLink, so it's admin-managed enrollment
       return (
         <Button
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          disabled // Always disabled if no applyLink, as enrollment is admin-managed
+          className="w-full"
+          disabled
           onClick={(e) => e.stopPropagation()}
         >
-          {buttonText()}
+          Admin Managed Enrollment
         </Button>
       );
     }
@@ -69,7 +78,8 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/30 transition-all duration-300 h-full bg-card">
       <Link
         href={`/campaign/${campaign.id}`}
-        className="block hover:opacity-90 transition-opacity"
+        className="block hover:opacity-90 transition-opacity flex-grow flex flex-col"
+        aria-label={`View details for ${campaign.name}`}
       >
         {campaign.imageUrl && (
           <div className="relative w-full h-48">
@@ -83,7 +93,7 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
             />
           </div>
         )}
-        <CardHeader>
+        <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <CardTitle className="font-headline text-2xl mb-1 group-hover:underline">{campaign.name}</CardTitle>
             {getStatusBadge()}
@@ -105,11 +115,11 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
               </CardDescription>
           )}
         </CardHeader>
-        <CardContent className="flex-grow">
+        <CardContent className="flex-grow pt-2">
           <p className="text-muted-foreground line-clamp-3">{campaign.description}</p>
         </CardContent>
       </Link>
-      <CardFooter>
+      <CardFooter className="pt-4">
         {renderApplyButton()}
       </CardFooter>
     </Card>
