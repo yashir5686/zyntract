@@ -13,6 +13,7 @@ import ManageCoursesDialog from './dialogs/ManageCoursesDialog';
 import ManageStudentsDialog from './dialogs/ManageStudentsDialog';
 import ManageProjectsDialog from './dialogs/ManageProjectsDialog';
 import ManageQuizzesDialog from './dialogs/ManageQuizzesDialog';
+import EditCampaignForm from './dialogs/EditCampaignForm'; // Import EditCampaignForm
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCampaignApplicationsForCampaign } from '@/lib/firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 interface CampaignAdminPanelProps {
   campaign: Campaign;
@@ -77,10 +78,12 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
   const [isManageProjectsOpen, setIsManageProjectsOpen] = useState(false);
   const [isManageQuizzesOpen, setIsManageQuizzesOpen] = useState(false);
   const [isManageStudentsOpen, setIsManageStudentsOpen] = useState(false);
+  const [isEditCampaignDialogOpen, setIsEditCampaignDialogOpen] = useState(false); // State for edit dialog
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
   const [applicationsList, setApplicationsList] = useState<CampaignApplication[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+  const router = useRouter(); // Initialize useRouter
 
   const fetchApplicationsList = useCallback(async () => {
     if (!campaign.id) return;
@@ -102,7 +105,11 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
 
   const approvedParticipants = applicationsList.filter(app => app.status === 'approved');
 
-  const handleEditCampaign = () => alert(`Editing campaign: ${campaign.name} (Not implemented yet)`);
+  const handleCampaignUpdated = () => {
+    router.refresh(); // Refresh page data
+    setIsEditCampaignDialogOpen(false); // Close dialog
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -147,9 +154,26 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2 sm:mt-0">
                 {getStatusBadge(campaign.status)}
-                <Button variant="outline" size="sm" onClick={handleEditCampaign} className="whitespace-nowrap">
-                    <Edit className="w-3 h-3 mr-1.5" /> Edit Campaign
-                </Button>
+                <Dialog open={isEditCampaignDialogOpen} onOpenChange={setIsEditCampaignDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="whitespace-nowrap">
+                        <Edit className="w-3 h-3 mr-1.5" /> Edit Campaign
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                     <DialogHeader>
+                        <DialogTitle className="font-headline text-2xl">Edit Campaign</DialogTitle>
+                        <DialogDescription>
+                            Make changes to the campaign details below.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <EditCampaignForm 
+                        campaign={campaign} 
+                        onCampaignUpdated={handleCampaignUpdated} 
+                        setOpen={setIsEditCampaignDialogOpen} 
+                    />
+                  </DialogContent>
+                </Dialog>
             </div>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground text-sm mt-2">
@@ -236,7 +260,7 @@ export default function CampaignAdminPanel({ campaign }: CampaignAdminPanelProps
                             </DialogContent>
                         </Dialog>
                         
-                        <Separator />
+                        <Separator className="my-4" />
 
                         <h4 className="font-semibold text-md text-muted-foreground">Currently Enrolled Participants ({approvedParticipants.length})</h4>
                         {isLoadingApplications ? (

@@ -83,6 +83,34 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt
   }
 };
 
+export const updateCampaign = async (campaignId: string, campaignData: Partial<Omit<Campaign, 'id' | 'createdAt'>>): Promise<void> => {
+  try {
+    const campaignRef = doc(db, 'campaigns', campaignId);
+    const dataToUpdate: any = { ...campaignData };
+    // Ensure dates are stored as ISO strings if they are Date objects
+    if (dataToUpdate.startDate && dataToUpdate.startDate instanceof Date) {
+      dataToUpdate.startDate = dataToUpdate.startDate.toISOString();
+    }
+    if (dataToUpdate.endDate && dataToUpdate.endDate instanceof Date) {
+      dataToUpdate.endDate = dataToUpdate.endDate.toISOString();
+    }
+    
+    // Handle optional fields: if an empty string is passed for applyLink or imageUrl, remove the field.
+    if (dataToUpdate.applyLink === '') {
+      dataToUpdate.applyLink = null; // Or delete dataToUpdate.applyLink;
+    }
+    if (dataToUpdate.imageUrl === '') {
+      dataToUpdate.imageUrl = null; // Or delete dataToUpdate.imageUrl;
+    }
+
+
+    await updateDoc(campaignRef, dataToUpdate);
+  } catch (error) {
+    console.error("Error updating campaign: ", error);
+    throw error;
+  }
+};
+
 // CAMPAIGN APPLICATIONS & ENROLLMENT
 
 export const getCampaignApplicationForUser = async (userId: string, campaignId: string): Promise<CampaignApplication | null> => {
