@@ -38,6 +38,7 @@ export interface CampaignApplication {
   userName?: string;
   userEmail?: string;
   campaignName?: string;
+  referralCode?: string; // Added referral code
 }
 
 export interface ChallengeExample {
