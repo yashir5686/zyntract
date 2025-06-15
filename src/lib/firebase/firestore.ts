@@ -19,12 +19,11 @@ const serializeFirestoreData = (data: Record<string, any>): Record<string, any> 
   return serializedData;
 };
 
-// Helper function to generate a referral code
-const generateReferralCode = (campaignId: string, userId: string): string => {
-  const campPart = campaignId.substring(0, Math.min(campaignId.length, 5)).toUpperCase();
-  const userPart = userId.substring(0, Math.min(userId.length, 5)).toUpperCase();
-  const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase(); // 6 random alphanumeric chars
-  return `${campPart}-${userPart}-${randomPart}`;
+// Helper function to generate a global referral code
+export const generateGlobalReferralCode = (userId: string): string => {
+  const userPart = userId.substring(userId.length - 6).toUpperCase(); // Last 6 chars of UID
+  const randomPart = Math.random().toString(36).substring(2, 7).toUpperCase(); // 5 random alphanumeric chars
+  return `ZYNT-${userPart}-${randomPart}`;
 };
 
 
@@ -104,7 +103,6 @@ export const getCampaignApplicationForUser = async (userId: string, campaignId: 
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
-        referralCode: serialized.referralCode,
       } as CampaignApplication;
     }
     return null;
@@ -132,7 +130,6 @@ export const getCampaignApplicationsByUserId = async (userId: string): Promise<C
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
-        referralCode: serialized.referralCode,
       } as CampaignApplication;
     });
   } catch (error) {
@@ -158,7 +155,6 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
         userName: serialized.userName,
         userEmail: serialized.userEmail,
         campaignName: serialized.campaignName,
-        referralCode: serialized.referralCode,
       } as CampaignApplication;
     });
   } catch (error) {
@@ -170,18 +166,7 @@ export const getCampaignApplicationsForCampaign = async (campaignId: string): Pr
 export const updateCampaignApplicationStatus = async (applicationId: string, status: CampaignApplication['status']): Promise<void> => {
   try {
     const appRef = doc(db, 'campaignApplications', applicationId);
-    const appSnap = await getDoc(appRef);
-    if (!appSnap.exists()) {
-      throw new Error("Application not found.");
-    }
-    const appData = appSnap.data() as CampaignApplication;
-
-    const updateData: Partial<CampaignApplication> = { status };
-
-    if (status === 'approved' && !appData.referralCode) {
-      updateData.referralCode = generateReferralCode(appData.campaignId, appData.userId);
-    }
-    await updateDoc(appRef, updateData);
+    await updateDoc(appRef, { status });
   } catch (error) {
     console.error("Error updating application status: ", error);
     throw error;
@@ -204,13 +189,11 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
     const existingAppQuery = query(applicationsCol, where('userId', '==', userId), where('campaignId', '==', campaignId));
     const existingAppSnapshot = await getDocs(existingAppQuery);
 
-    const newReferralCode = generateReferralCode(campaignId, userId);
 
     if (!existingAppSnapshot.empty) {
        const existingAppId = existingAppSnapshot.docs[0].id;
        await updateDoc(doc(db, 'campaignApplications', existingAppId), {
          status: 'approved',
-         referralCode: existingAppSnapshot.docs[0].data().referralCode || newReferralCode // Keep existing if present, else generate
        });
        return existingAppId;
     }
@@ -222,7 +205,6 @@ export const enrollUserInCampaignByEmail = async (campaignId: string, email: str
       userName: userData.displayName || userData.username || 'Anonymous',
       userEmail: userData.email || 'N/A',
       campaignName: campaignName || 'N/A',
-      referralCode: newReferralCode,
       appliedAt: serverTimestamp() 
     };
     const docRef = await addDoc(applicationsCol, applicationData);
@@ -472,6 +454,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
         profileCompleted: serialized.profileCompleted,
         createdAt: serialized.createdAt as string | null, 
         lastLogin: serialized.lastLogin as string | null, 
+        globalReferralCode: serialized.globalReferralCode,
       } as UserProfile;
     }
     return null;
@@ -502,6 +485,7 @@ export const getUserProfileByUsername = async (username: string): Promise<UserPr
         profileCompleted: serialized.profileCompleted,
         createdAt: serialized.createdAt as string | null, 
         lastLogin: serialized.lastLogin as string | null, 
+        globalReferralCode: serialized.globalReferralCode,
       } as UserProfile;
     }
     return null;

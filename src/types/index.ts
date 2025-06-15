@@ -14,6 +14,7 @@ export interface UserProfile {
   createdAt?: string | null; 
   lastLogin?: string | null; 
   profileCompleted?: boolean; 
+  globalReferralCode?: string; // Added global referral code
 }
 
 export interface Campaign {
@@ -38,7 +39,7 @@ export interface CampaignApplication {
   userName?: string;
   userEmail?: string;
   campaignName?: string;
-  referralCode?: string; // Added referral code
+  // referralCode?: string; // Removed campaign-specific referral code
 }
 
 export interface ChallengeExample {

@@ -9,6 +9,7 @@ import { auth, db } from '@/lib/firebase/config';
 import type { UserProfile } from '@/types';
 import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { generateGlobalReferralCode } from '@/lib/firebase/firestore'; // Import the generator
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -28,28 +29,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Keep setLoading(true) at the start of this callback if complex async logic follows
-      // setLoading(true) was here, but it should be set to false at the end of all checks.
       if (firebaseUser) {
         setUser(firebaseUser);
         const userRef = doc(db, 'users', firebaseUser.uid);
         let userSnap = await getDoc(userRef);
+        let profileDataToSet: UserProfile;
+        let needsProfileUpdate = false;
+        const updates: Partial<UserProfile> = { lastLogin: serverTimestamp() };
 
         if (userSnap.exists()) {
-          const profileData = userSnap.data() as UserProfile;
-          if (!profileData.lastLogin || (!profileData.profileCompleted && !profileData.username)) {
-             await updateDoc(userRef, { lastLogin: serverTimestamp() });
-             userSnap = await getDoc(userRef); 
+          let currentProfileData = userSnap.data() as UserProfile;
+
+          if (!currentProfileData.globalReferralCode) {
+            updates.globalReferralCode = generateGlobalReferralCode(firebaseUser.uid);
+            needsProfileUpdate = true;
           }
-          const updatedProfileData = userSnap.data() as UserProfile;
-          setUserProfile(updatedProfileData);
-          setIsAdmin(updatedProfileData.isAdmin === true);
           
-          if (!updatedProfileData.profileCompleted && window.location.pathname !== '/complete-profile' && window.location.pathname !== '/signup') {
+          // Ensure lastLogin is updated, even if referral code exists or profile is complete
+          if (!currentProfileData.lastLogin || (!currentProfileData.profileCompleted && !currentProfileData.username)) {
+             needsProfileUpdate = true; // lastLogin update implies a profile data change
+          }
+
+
+          if (needsProfileUpdate) {
+            await updateDoc(userRef, updates);
+            userSnap = await getDoc(userRef); // Re-fetch the updated profile
+            profileDataToSet = userSnap.data() as UserProfile;
+          } else {
+            profileDataToSet = currentProfileData;
+          }
+          
+          setUserProfile(profileDataToSet);
+          setIsAdmin(profileDataToSet.isAdmin === true);
+          
+          if (!profileDataToSet.profileCompleted && window.location.pathname !== '/complete-profile' && window.location.pathname !== '/signup') {
             router.push('/complete-profile');
           }
 
         } else {
+          // New user profile creation
+          const newGlobalReferralCode = generateGlobalReferralCode(firebaseUser.uid);
           const newUserProfile: UserProfile = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -61,11 +80,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             points: 0,
             isAdmin: false,
             profileCompleted: false,
-            createdAt: serverTimestamp(),
-            lastLogin: serverTimestamp(),
+            createdAt: serverTimestamp() as unknown as string, // Firestore handles serverTimestamp
+            lastLogin: serverTimestamp() as unknown as string, // Firestore handles serverTimestamp
+            globalReferralCode: newGlobalReferralCode,
           };
           await setDoc(userRef, newUserProfile);
-          setUserProfile(newUserProfile);
+          // To get actual server-generated timestamps, we'd ideally re-fetch, but for now, this is okay.
+          // Or ensure UserProfile type allows for FieldValue for timestamp fields before serialization.
+          // For simplicity, client-side state will have placeholder or null until re-fetch if strict ISO strings are needed immediately.
+          // However, the current UserProfile expects string|null for createdAt/lastLogin after serialization.
+          // So, let's convert to a structure that `setUserProfile` expects for consistency, even if timestamps aren't fully resolved client-side yet.
+           const tempProfileForState: UserProfile = {
+            ...newUserProfile,
+            createdAt: new Date().toISOString(), // Approximate for local state
+            lastLogin: new Date().toISOString(), // Approximate for local state
+          };
+          setUserProfile(tempProfileForState);
           setIsAdmin(false);
           if (window.location.pathname !== '/complete-profile' && window.location.pathname !== '/signup') {
              router.push('/complete-profile');
@@ -76,17 +106,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserProfile(null);
         setIsAdmin(false);
       }
-      setLoading(false); // Set loading to false after all auth logic is complete
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [router]);
   
-  // The full-page skeleton previously here was causing hydration issues.
-  // Child components (Header, pages) already use useAuth().loading for their specific skeletons.
-  // AuthProvider should consistently render its children to avoid mismatches.
-  // If `loading` is true, the children will receive `loading: true` via context and can react accordingly.
-
   return (
     <AuthContext.Provider value={{ user, userProfile, loading, isAdmin }}>
       {children}
@@ -101,3 +126,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

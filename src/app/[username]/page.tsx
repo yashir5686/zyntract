@@ -5,10 +5,11 @@ import type { UserProfile, Campaign, CampaignApplication } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { UserCircle, Zap, Briefcase, CalendarDays, CheckCircle, Clock, AlertTriangle, ListChecks } from 'lucide-react';
+import { UserCircle, Zap, Briefcase, CalendarDays, CheckCircle, Clock, AlertTriangle, ListChecks, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
+import { auth } from '@/lib/firebase/config'; // Import auth to check current user
 
 interface ProfilePageParams {
   params: {
@@ -24,6 +25,8 @@ interface AppliedCampaignDetails {
 export default async function UserProfilePage({ params }: ProfilePageParams) {
   const username = params.username;
   const profile = await getUserProfileByUsername(username);
+  // Get current logged-in user's ID to check if this is their own profile
+  const currentFirebaseUser = auth.currentUser; 
 
   if (!profile) {
     return (
@@ -52,6 +55,8 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
     details => details.application.status === 'approved' && details.campaign
   );
 
+  const isOwnProfile = currentFirebaseUser && currentFirebaseUser.uid === profile.uid;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-3xl mx-auto shadow-xl">
@@ -78,6 +83,22 @@ export default async function UserProfilePage({ params }: ProfilePageParams) {
               <StatCard title="Daily Streak" value={profile.dailyChallengeStreak ?? 0} icon={<CalendarDays className="text-accent"/>} />
             </div>
           </section>
+
+          {isOwnProfile && profile.globalReferralCode && (
+            <section>
+              <h2 className="font-headline text-2xl font-semibold mb-4 text-primary flex items-center">
+                <Gift className="w-6 h-6 mr-2" /> Your Referral Code
+              </h2>
+              <Card className="bg-primary/10">
+                <CardContent className="p-4 text-center">
+                  <p className="text-sm text-primary/80 mb-1">Share this code with your friends!</p>
+                  <p className="text-2xl font-mono font-bold text-primary tracking-wider select-all">
+                    {profile.globalReferralCode}
+                  </p>
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
           <section>
             <h2 className="font-headline text-2xl font-semibold mb-4 text-primary flex items-center">
@@ -175,6 +196,10 @@ export function ProfilePageSkeleton() {
             </div>
           </section>
           <section>
+             <Skeleton className="h-8 w-1/3 mb-4" /> {/* Placeholder for referral code section title */}
+             <Skeleton className="h-20 w-full rounded-lg" /> {/* Placeholder for referral code card */}
+          </section>
+          <section>
             <Skeleton className="h-8 w-1/3 mb-4" />
             <div className="space-y-4">
               <Skeleton className="h-24 w-full rounded-lg" />
@@ -186,3 +211,4 @@ export function ProfilePageSkeleton() {
     </div>
   );
 }
+
