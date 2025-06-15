@@ -3,7 +3,7 @@ import type { Campaign, UserProfile } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink, LogIn } from 'lucide-react';
+import { CalendarDays, Zap, CheckCircle, AlertTriangle, Info, ExternalLink, LogIn, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -31,8 +31,19 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
   };
 
   const renderApplyButton = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to the beginning of the day
+
+    const effectiveRegistrationEndDateStr = campaign.registrationEndDate || campaign.startDate;
+    const registrationEndDate = new Date(effectiveRegistrationEndDateStr);
+    registrationEndDate.setHours(23, 59, 59, 999); // Consider registration open for the entirety of the end date
+
     if (campaign.status === 'past') {
       return <Button className="w-full" disabled>Campaign Ended</Button>;
+    }
+
+    if (today > registrationEndDate) {
+      return <Button className="w-full" disabled>Registration Closed</Button>;
     }
 
     if (campaign.applyLink) {
@@ -41,7 +52,7 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
           <Button
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={(e) => {
-              e.stopPropagation(); // Prevent Link navigation if card is wrapped
+              e.stopPropagation();
               router.push('/signin');
             }}
           >
@@ -49,7 +60,6 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
           </Button>
         );
       }
-      // User is logged in, and there's an applyLink
       return (
         <Button
           asChild
@@ -61,7 +71,6 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
         </Button>
       );
     } else {
-      // No applyLink, so it's admin-managed enrollment
       return (
         <Button
           className="w-full"
@@ -102,6 +111,12 @@ export default function CampaignCard({ campaign, user }: CampaignCardProps) {
             <CalendarDays className="w-4 h-4 mr-2" />
             {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
           </CardDescription>
+          {campaign.registrationEndDate && (
+            <CardDescription className="text-xs flex items-center text-accent mt-1">
+              <Clock className="w-3 h-3 mr-1" />
+              Registration ends: {formatDate(campaign.registrationEndDate)}
+            </CardDescription>
+          )}
           {campaign.requiredPoints && campaign.requiredPoints > 0 && (
               <CardDescription className="text-sm flex items-center text-muted-foreground mt-1">
                   <Zap className="w-4 h-4 mr-2 text-accent"/>

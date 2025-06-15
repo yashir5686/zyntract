@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from '@/hooks/use-toast';
-import { updateCampaign } from '@/lib/firebase/firestore'; // Use updateCampaign
+import { updateCampaign } from '@/lib/firebase/firestore';
 import type { Campaign } from '@/types';
 import { CalendarIcon, LinkIcon, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ const campaignSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(10000),
   startDate: z.date({ required_error: "Start date is required." }),
   endDate: z.date({ required_error: "End date is required." }),
+  registrationEndDate: z.date().optional(), // New optional field
   status: z.enum(['upcoming', 'ongoing', 'past'], { required_error: "Status is required." }),
   imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   applyLink: z.string().url({ message: "Please enter a valid URL for the application link." }).optional().or(z.literal('')),
@@ -31,12 +32,20 @@ const campaignSchema = z.object({
 }).refine(data => data.endDate >= data.startDate, {
   message: "End date cannot be earlier than start date.",
   path: ["endDate"],
+}).refine(data => {
+  if (data.registrationEndDate) {
+    return data.registrationEndDate <= data.endDate;
+  }
+  return true;
+}, {
+  message: "Registration end date cannot be after campaign end date.",
+  path: ["registrationEndDate"],
 });
 
 type CampaignFormValues = z.infer<typeof campaignSchema>;
 
 interface EditCampaignFormProps {
-  campaign: Campaign; // Existing campaign data
+  campaign: Campaign;
   onCampaignUpdated: () => void;
   setOpen: (open: boolean) => void;
 }
@@ -52,6 +61,7 @@ export default function EditCampaignForm({ campaign, onCampaignUpdated, setOpen 
       description: campaign.description || '',
       startDate: campaign.startDate ? new Date(campaign.startDate) : undefined,
       endDate: campaign.endDate ? new Date(campaign.endDate) : undefined,
+      registrationEndDate: campaign.registrationEndDate ? new Date(campaign.registrationEndDate) : undefined,
       status: campaign.status || 'upcoming',
       imageUrl: campaign.imageUrl || '',
       applyLink: campaign.applyLink || '',
@@ -65,6 +75,7 @@ export default function EditCampaignForm({ campaign, onCampaignUpdated, setOpen 
       description: campaign.description || '',
       startDate: campaign.startDate ? new Date(campaign.startDate) : undefined,
       endDate: campaign.endDate ? new Date(campaign.endDate) : undefined,
+      registrationEndDate: campaign.registrationEndDate ? new Date(campaign.registrationEndDate) : undefined,
       status: campaign.status || 'upcoming',
       imageUrl: campaign.imageUrl || '',
       applyLink: campaign.applyLink || '',
@@ -79,7 +90,7 @@ export default function EditCampaignForm({ campaign, onCampaignUpdated, setOpen 
         ...data,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
-        // Ensure applyLink and imageUrl are correctly handled if empty
+        registrationEndDate: data.registrationEndDate ? data.registrationEndDate.toISOString() : undefined,
         applyLink: data.applyLink || undefined,
         imageUrl: data.imageUrl || undefined,
         requiredPoints: data.requiredPoints || 0,
@@ -87,8 +98,8 @@ export default function EditCampaignForm({ campaign, onCampaignUpdated, setOpen 
       
       await updateCampaign(campaign.id, campaignUpdateData);
       toast({ title: 'Campaign Updated!', description: `${data.name} has been successfully updated.` });
-      onCampaignUpdated(); // Refresh campaign list/page
-      setOpen(false); // Close the dialog
+      onCampaignUpdated();
+      setOpen(false);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Failed to Update Campaign', description: error.message || 'Could not update campaign.' });
     } finally {
@@ -195,6 +206,40 @@ export default function EditCampaignForm({ campaign, onCampaignUpdated, setOpen 
             )}
           />
         </div>
+         <FormField
+            control={form.control}
+            name="registrationEndDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Registration End Date (Optional)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? format(field.value, "PPP") : <span>Leave blank to use Start Date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         <FormField
           control={form.control}
           name="status"

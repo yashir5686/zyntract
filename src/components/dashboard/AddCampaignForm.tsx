@@ -24,6 +24,7 @@ const campaignSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }).max(10000),
   startDate: z.date({ required_error: "Start date is required." }),
   endDate: z.date({ required_error: "End date is required." }),
+  registrationEndDate: z.date().optional(), // New optional field
   status: z.enum(['upcoming', 'ongoing', 'past'], { required_error: "Status is required." }),
   imageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   applyLink: z.string().url({ message: "Please enter a valid URL for the application link." }).optional().or(z.literal('')),
@@ -31,6 +32,22 @@ const campaignSchema = z.object({
 }).refine(data => data.endDate >= data.startDate, {
   message: "End date cannot be earlier than start date.",
   path: ["endDate"],
+}).refine(data => { // Registration end date must be before or on end date
+  if (data.registrationEndDate) {
+    return data.registrationEndDate <= data.endDate;
+  }
+  return true;
+}, {
+  message: "Registration end date cannot be after campaign end date.",
+  path: ["registrationEndDate"],
+}).refine(data => { // Registration end date ideally before or on start date, but can be after for flexibility
+  if (data.registrationEndDate && data.startDate) {
+    return true; // Allow registration end date to be after start date if needed
+  }
+  return true;
+}, {
+  message: "Registration end date should ideally be before or on the start date.",
+  path: ["registrationEndDate"],
 });
 
 type CampaignFormValues = z.infer<typeof campaignSchema>;
@@ -53,24 +70,26 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
       imageUrl: '',
       applyLink: '',
       requiredPoints: 0,
+      registrationEndDate: undefined,
     },
   });
 
   const onSubmit = async (data: CampaignFormValues) => {
     setIsLoading(true);
     try {
-      const campaignData: Omit<Campaign, 'id'> = {
+      const campaignData: Omit<Campaign, 'id' | 'createdAt'> = {
         ...data,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
-        applyLink: data.applyLink || undefined, // Store as undefined if empty
+        registrationEndDate: data.registrationEndDate ? data.registrationEndDate.toISOString() : undefined,
+        applyLink: data.applyLink || undefined,
         requiredPoints: data.requiredPoints || 0,
       };
       await addCampaign(campaignData);
       toast({ title: 'Campaign Added!', description: `${data.name} has been successfully created.` });
-      onCampaignAdded(); // Refresh campaign list on dashboard
-      setOpen(false); // Close the dialog
-      form.reset(); // Reset form fields
+      onCampaignAdded();
+      setOpen(false);
+      form.reset();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Failed to Add Campaign', description: error.message || 'Could not create campaign.' });
     } finally {
@@ -178,6 +197,40 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
           />
         </div>
         <FormField
+            control={form.control}
+            name="registrationEndDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Registration End Date (Optional)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? format(field.value, "PPP") : <span>Leave blank to use Start Date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        <FormField
           control={form.control}
           name="status"
           render={({ field }) => (
@@ -248,4 +301,3 @@ export default function AddCampaignForm({ onCampaignAdded, setOpen }: AddCampaig
     </Form>
   );
 }
-

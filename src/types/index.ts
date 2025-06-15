@@ -14,7 +14,7 @@ export interface UserProfile {
   createdAt?: string | null; 
   lastLogin?: string | null; 
   profileCompleted?: boolean; 
-  globalReferralCode?: string; // Added global referral code
+  globalReferralCode?: string;
 }
 
 export interface Campaign {
@@ -23,6 +23,7 @@ export interface Campaign {
   description: string;
   startDate: string; 
   endDate: string; 
+  registrationEndDate?: string; // New field for registration deadline
   status: 'ongoing' | 'upcoming' | 'past';
   imageUrl?: string;
   requiredPoints?: number;
@@ -39,7 +40,7 @@ export interface CampaignApplication {
   userName?: string;
   userEmail?: string;
   campaignName?: string;
-  // referralCode?: string; // Removed campaign-specific referral code
+  // referralCode?: string; // This was already removed, confirming.
 }
 
 export interface ChallengeExample {
@@ -132,4 +133,3 @@ export interface UserCourseCertificate {
   reviewedAt?: string | null; 
   adminNotes?: string | null;
 }
-

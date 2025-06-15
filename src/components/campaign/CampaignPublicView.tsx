@@ -5,7 +5,7 @@ import type { Campaign, CampaignApplication, Course, Project, QuizChallenge, Use
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge, UploadCloud, Check, X, LogIn } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Zap, CheckCircle, Info, ExternalLink, ListChecks, Trophy, Brain, Loader2, BookOpen, LinkIcon, FileText, HelpCircle, FileBadge, UploadCloud, Check, X, LogIn, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -286,8 +286,19 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
   );
 
   const renderApplyButton = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
+
+    const effectiveRegistrationEndDateStr = campaign.registrationEndDate || campaign.startDate;
+    const registrationEndDate = new Date(effectiveRegistrationEndDateStr);
+    registrationEndDate.setHours(23, 59, 59, 999);
+
     if (campaign.status === 'past') {
       return <Button className="w-full md:w-auto" disabled>Campaign Ended</Button>;
+    }
+
+    if (today > registrationEndDate) {
+      return <Button className="w-full md:w-auto" disabled>Registration Closed</Button>;
     }
 
     if (campaign.applyLink) {
@@ -366,6 +377,9 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-muted-foreground text-sm">
             <span className="flex items-center"><CalendarDays className="w-4 h-4 mr-2" /> {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}</span>
+            {campaign.registrationEndDate && (
+              <span className="flex items-center text-accent"><Clock className="w-4 h-4 mr-2" /> Reg. ends: {formatDate(campaign.registrationEndDate)}</span>
+            )}
             {campaign.requiredPoints && campaign.requiredPoints > 0 && (
               <span className="flex items-center"><Zap className="w-4 h-4 mr-2 text-accent" /> {campaign.requiredPoints} points for reference</span>
             )}
@@ -490,5 +504,3 @@ export default function CampaignPublicView({ campaign }: CampaignPublicViewProps
     </div>
   );
 }
-
-    

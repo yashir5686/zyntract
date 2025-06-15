@@ -74,6 +74,9 @@ export const addCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt
     if (!campaignData.applyLink) {
       delete dataToAdd.applyLink;
     }
+    if (!campaignData.registrationEndDate) {
+      delete dataToAdd.registrationEndDate;
+    }
 
     const docRef = await addDoc(campaignsCol, dataToAdd);
     return docRef.id;
@@ -87,22 +90,27 @@ export const updateCampaign = async (campaignId: string, campaignData: Partial<O
   try {
     const campaignRef = doc(db, 'campaigns', campaignId);
     const dataToUpdate: any = { ...campaignData };
-    // Ensure dates are stored as ISO strings if they are Date objects
+
     if (dataToUpdate.startDate && dataToUpdate.startDate instanceof Date) {
       dataToUpdate.startDate = dataToUpdate.startDate.toISOString();
     }
     if (dataToUpdate.endDate && dataToUpdate.endDate instanceof Date) {
       dataToUpdate.endDate = dataToUpdate.endDate.toISOString();
     }
+    if (dataToUpdate.registrationEndDate && dataToUpdate.registrationEndDate instanceof Date) {
+      dataToUpdate.registrationEndDate = dataToUpdate.registrationEndDate.toISOString();
+    } else if (dataToUpdate.registrationEndDate === undefined || dataToUpdate.registrationEndDate === null) {
+       // If cleared in form, explicitly set to null or remove if your logic prefers undefined
+       // For firestore, setting to null is often clearer than deleting a field for "no value"
+      dataToUpdate.registrationEndDate = null;
+    }
     
-    // Handle optional fields: if an empty string is passed for applyLink or imageUrl, remove the field.
     if (dataToUpdate.applyLink === '') {
-      dataToUpdate.applyLink = null; // Or delete dataToUpdate.applyLink;
+      dataToUpdate.applyLink = null; 
     }
     if (dataToUpdate.imageUrl === '') {
-      dataToUpdate.imageUrl = null; // Or delete dataToUpdate.imageUrl;
+      dataToUpdate.imageUrl = null; 
     }
-
 
     await updateDoc(campaignRef, dataToUpdate);
   } catch (error) {
@@ -930,6 +938,7 @@ export const seedCampaigns = async () => {
         description: 'Master full-stack web development with React, Node.js, and Firebase.',
         startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date(Date.now() + 33 * 24 * 60 * 60 * 1000).toISOString(),
+        registrationEndDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/7DF9FF/222831?text=Web+Dev',
         requiredPoints: 0,
@@ -939,6 +948,7 @@ export const seedCampaigns = async () => {
         description: 'Dive into machine learning and build innovative AI projects. Apply via external form.',
         startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date(Date.now() + 61 * 24 * 60 * 60 * 1000).toISOString(),
+        // No registrationEndDate, will default to startDate
         status: 'upcoming',
         imageUrl: 'https://placehold.co/600x300.png/FFD700/222831?text=External+AI',
         requiredPoints: 20,
@@ -949,6 +959,7 @@ export const seedCampaigns = async () => {
         description: 'Compete in a 48-hour data science hackathon. Apply directly through our platform.',
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+        registrationEndDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'ongoing',
         imageUrl: 'https://placehold.co/600x300.png/39FF14/222831?text=AI+Challenge',
         requiredPoints: 100,
@@ -958,6 +969,7 @@ export const seedCampaigns = async () => {
         description: 'Learn to build cross-platform mobile apps with Flutter.',
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        registrationEndDate: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(), // Reg ended before start
         status: 'past',
         imageUrl: 'https://placehold.co/600x300.png/FFFFFF/222831?text=Mobile+Apps',
         requiredPoints: 50,
@@ -970,4 +982,3 @@ export const seedCampaigns = async () => {
   }
 };
     
-
